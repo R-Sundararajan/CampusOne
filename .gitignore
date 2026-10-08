@@ -4,9 +4,10 @@ CampusOne_ReqSpecs.md
 /workflow.md
 node_modules/
 dist/
-server/generated/
+backend/src/generated/
 .env
 .env.*
 !.env.example
 coverage/
 *.log
+CampusOne (1).md

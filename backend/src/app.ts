@@ -41,7 +41,7 @@ export async function createApp({ config, auth, checkDatabase, staticDirectory }
   app.use('/api/auth', await authRoutes(auth, config));
   // API errors must never be masked by the SPA fallback.
   app.use('/api', (_req, res) => res.status(404).json({ error: 'API route not found' }));
-  const staticRoot = staticDirectory ?? path.resolve('dist/client');
+  const staticRoot = staticDirectory ?? path.resolve('../frontend/dist');
   if (existsSync(path.join(staticRoot, 'index.html'))) {
     app.use(express.static(staticRoot));
     app.get('/{*path}', (_req, res) => res.sendFile(path.join(staticRoot, 'index.html')));

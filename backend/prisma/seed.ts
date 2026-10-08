@@ -1,7 +1,8 @@
-import 'dotenv/config';
-import { createDatabase } from '../server/db.js';
-import { hashPassword } from '../server/modules/auth/routes.js';
-import type { Role } from '../server/generated/prisma/enums.js';
+import { config as loadEnv } from 'dotenv';
+loadEnv({ path: ['.env', '../.env'], quiet: true });
+import { createDatabase } from '../src/db.js';
+import { hashPassword } from '../src/modules/auth/routes.js';
+import type { Role } from '../src/generated/prisma/enums.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 const password = process.env.DEMO_PASSWORD;

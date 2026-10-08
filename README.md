@@ -52,7 +52,7 @@ After creating `.env`:
 docker compose build app
 docker compose up -d db
 docker compose run --rm app npm run db:migrate
-docker compose run --rm app node dist/prisma/seed.js
+docker compose run --rm app npm run db:seed:built -w backend
 docker compose up -d app
 ```
 
@@ -128,3 +128,7 @@ Railway's trial and bucket-billing documents disagree about limited-trial bucket
 Before database changes, preserve a backup and practice restoration into a separate local database. Use Railway rollback or redeploy a known-good commit for application recovery; application rollback does not undo migrations. The final integration milestone will verify backup/rollback procedures rather than claim them complete now.
 
 Local `decisions.md` and `workflow.md` are intentionally ignored. Track progress there without committing them.
+
+## Repository layout
+
+`frontend/` owns React, Vite and its build. `backend/` owns Express, Prisma, migrations and tests. npm workspaces share one root lockfile. Run `npm run dev:ui` or `npm run dev:api` independently; `npm run build -w frontend` and `npm run build -w backend` build each package. Root scripts orchestrate both.

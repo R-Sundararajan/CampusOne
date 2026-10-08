@@ -1,12 +1,12 @@
 import path from 'node:path';
 import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createApp } from '../server/app.js';
-import type { Config } from '../server/config.js';
-import { loadConfig } from '../server/config.js';
-import { hashPassword } from '../server/modules/auth/routes.js';
-import type { LoginUser, PublicUser, AuthRepository } from '../server/modules/auth/repository.js';
-import { issueToken } from '../server/modules/auth/tokens.js';
+import { createApp } from '../src/app.js';
+import type { Config } from '../src/config.js';
+import { loadConfig } from '../src/config.js';
+import { hashPassword } from '../src/modules/auth/routes.js';
+import type { LoginUser, PublicUser, AuthRepository } from '../src/modules/auth/repository.js';
+import { issueToken } from '../src/modules/auth/tokens.js';
 
 const secret = 'test-only-secret-at-least-32-characters-long';
 const origin = 'http://127.0.0.1:5173';
@@ -26,7 +26,7 @@ const cookie = async () => `campusone_token=${await issueToken('test-student', s
 
 beforeAll(async () => {
   user = { id: 'test-student', name: 'Test Student', email: 'student@campusone.example', department: 'CS', roles: ['STUDENT'], passwordHash: await hashPassword('TestPassword!2026') };
-  app = await createApp({ config, auth: repo, checkDatabase: async () => {}, staticDirectory: path.resolve('client') });
+  app = await createApp({ config, auth: repo, checkDatabase: async () => {}, staticDirectory: path.resolve('../frontend') });
 });
 
 describe('JWT authentication and access', () => {

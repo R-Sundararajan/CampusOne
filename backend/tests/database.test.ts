@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createDatabase } from '../server/db.js';
-import { createApp } from '../server/app.js';
-import { authRepository } from '../server/modules/auth/repository.js';
-import { hashPassword } from '../server/modules/auth/routes.js';
+import { createDatabase } from '../src/db.js';
+import { createApp } from '../src/app.js';
+import { authRepository } from '../src/modules/auth/repository.js';
+import { hashPassword } from '../src/modules/auth/routes.js';
 
 // Opt in against a disposable/test database. Normal API tests need no database.
 describe.skipIf(!process.env.TEST_DATABASE_URL)('PostgreSQL foundation', () => {
