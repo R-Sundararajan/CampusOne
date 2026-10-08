@@ -11,3 +11,5 @@ backend/src/generated/
 coverage/
 *.log
 CampusOne (1).md
+/local-demo-accounts.txt
+.local-mail/

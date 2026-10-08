@@ -33,16 +33,7 @@ $campusSecret = node -e "process.stdout.write(require('node:crypto').randomBytes
 (Get-Content .env) -replace '^JWT_SECRET=.*$', "JWT_SECRET=$campusSecret" | Set-Content .env
 ```
 
-Demo accounts all use the `DEMO_PASSWORD` supplied at first seed:
-
-| Email | Roles |
-|---|---|
-| student@campusone.example | Student |
-| staff@campusone.example | Staff |
-| clubhead@campusone.example | Student + Club Head |
-| admin@campusone.example | Staff + Admin |
-
-Seed reruns preserve existing passwords and roles and do not erase module data. Changing `DEMO_PASSWORD` later does not reset existing accounts. Demo addresses are synthetic, not an institutional identity-verification mechanism.
+Local demonstration credentials are kept only in the ignored `local-demo-accounts.txt` file. Demo accounts are for development, not institutional identity verification. Seed reruns preserve existing passwords and roles.
 
 ## Run the complete container locally
 
@@ -132,3 +123,7 @@ Local `decisions.md` and `workflow.md` are intentionally ignored. Track progress
 ## Repository layout
 
 `frontend/` owns React, Vite and its build. `backend/` owns Express, Prisma, migrations and tests. npm workspaces share one root lockfile. Run `npm run dev:ui` or `npm run dev:api` independently; `npm run build -w frontend` and `npm run build -w backend` build each package. Root scripts orchestrate both.
+
+## Portal interface
+
+Compact institutional forms and top navigation take layout cues from the supplied LMS screenshot and the public SSN LMS. The ProCoDe events reference informed readable poster/detail hierarchy. CampusOne uses an original SVG mark and illustration; no institutional photographs, logos or event artwork were copied or hotlinked. EventPoster preserves the complete image with object-fit: contain and has a missing-image fallback. Future modules remain explicit placeholders.
