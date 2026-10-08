@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../server/generated/prisma"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  STAFF
+  CLUB_HEAD
+  ADMIN
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+}
+
+enum EventStatus {
+  PUBLISHED
+  CANCELLED
+}
+
+enum ComplaintStatus {
+  SUBMITTED
+  ACCEPTED
+  RESOLVED
+  REJECTED
+}
+
+model User {
+  id           String @id @default(cuid())
+  name         String
+  email        String @unique
+  passwordHash String
+  roles        Role[]
+  department   String
+  phone        String?
+  active       Boolean @default(true)
+  createdAt    DateTime @default(now())
+  enrollments  Enrollment[]
+  assignments  TeachingAssignment[]
+  clubAssignments ClubAssignment[]
+  attendance   AttendanceRecord[]
+  markedSessions AttendanceSession[]
+  events       Event[]
+  registrations EventRegistration[]
+  complaints   Complaint[]
+  audits       AuditLog[]
+}
+
+model ClassGroup {
+  id       String @id @default(cuid())
+  name     String
+  section  String
+  academicYear String
+  offerings CourseOffering[]
+  @@unique([name, section, academicYear])
+}
+
+model Subject {
+  id       String @id @default(cuid())
+  code     String @unique
+  name     String
+  offerings CourseOffering[]
+}
+
+model CourseOffering {
+  id           String @id @default(cuid())
+  classGroupId String
+  subjectId    String
+  classGroup   ClassGroup @relation(fields: [classGroupId], references: [id])
+  subject      Subject @relation(fields: [subjectId], references: [id])
+  enrollments  Enrollment[]
+  assignments  TeachingAssignment[]
+  sessions     AttendanceSession[]
+  @@unique([classGroupId, subjectId])
+}
+
+model Enrollment {
+  studentId String
+  offeringId String
+  student User @relation(fields: [studentId], references: [id])
+  offering CourseOffering @relation(fields: [offeringId], references: [id])
+  @@id([studentId, offeringId])
+}
+
+model TeachingAssignment {
+  staffId String
+  offeringId String
+  staff User @relation(fields: [staffId], references: [id])
+  offering CourseOffering @relation(fields: [offeringId], references: [id])
+  @@id([staffId, offeringId])
+}
+
+model AttendanceSession {
+  id String @id @default(cuid())
+  offeringId String
+  date DateTime @db.Date
+  period Int
+  markedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  offering CourseOffering @relation(fields: [offeringId], references: [id])
+  markedBy User @relation(fields: [markedById], references: [id])
+  records AttendanceRecord[]
+  @@unique([offeringId, date, period])
+}
+
+model AttendanceRecord {
+  sessionId String
+  studentId String
+  status AttendanceStatus
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student User @relation(fields: [studentId], references: [id])
+  @@id([sessionId, studentId])
+  @@index([studentId])
+}
+
+model Club {
+  id String @id @default(cuid())
+  name String @unique
+  assignments ClubAssignment[]
+  events Event[]
+}
+
+model ClubAssignment {
+  userId String
+  clubId String
+  user User @relation(fields: [userId], references: [id])
+  club Club @relation(fields: [clubId], references: [id])
+  @@id([userId, clubId])
+}
+
+model Event {
+  id String @id @default(cuid())
+  name String
+  description String
+  venue String
+  startsAt DateTime
+  registrationEndsAt DateTime
+  registrationLink String?
+  status EventStatus @default(PUBLISHED)
+  clubId String
+  creatorId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  club Club @relation(fields: [clubId], references: [id])
+  creator User @relation(fields: [creatorId], references: [id])
+  registrations EventRegistration[]
+  image Image?
+  @@index([clubId, startsAt])
+}
+
+model EventRegistration {
+  eventId String
+  studentId String
+  createdAt DateTime @default(now())
+  event Event @relation(fields: [eventId], references: [id])
+  student User @relation(fields: [studentId], references: [id])
+  @@id([eventId, studentId])
+}
+
+model Complaint {
+  id String @id @default(cuid())
+  title String
+  description String
+  submitterId String
+  status ComplaintStatus @default(SUBMITTED)
+  adminResponse String?
+  resolvedAt DateTime?
+  resolutionDetails String?
+  feedback String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submitter User @relation(fields: [submitterId], references: [id])
+  image Image?
+  @@index([submitterId, createdAt])
+}
+
+model Image {
+  id String @id @default(cuid())
+  mimeType String
+  sizeBytes Int
+  bytes Bytes?
+  objectKey String?
+  eventId String? @unique
+  complaintId String? @unique
+  createdAt DateTime @default(now())
+  event Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  complaint Complaint? @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+}
+
+model ImageBudget {
+  id Int @id @default(1)
+  usedBytes Int @default(0)
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String
+  action String
+  entityType String
+  entityId String
+  changes Json
+  createdAt DateTime @default(now())
+  actor User @relation(fields: [actorId], references: [id])
+  @@index([entityType, entityId, createdAt])
+}

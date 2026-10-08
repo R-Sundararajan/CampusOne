@@ -1,0 +1,14 @@
+node_modules
+dist
+server/generated
+.git
+.env
+.env.*
+!.env.example
+decisions.md
+workflow.md
+CampusOne*.md
+CampusOne*.jpeg
+tests
+coverage
+*.log

@@ -1,2 +1,12 @@
 CampusOne_HLD.jpeg
 CampusOne_ReqSpecs.md
+/decisions.md
+/workflow.md
+node_modules/
+dist/
+server/generated/
+.env
+.env.*
+!.env.example
+coverage/
+*.log

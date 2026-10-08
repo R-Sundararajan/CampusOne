@@ -1,0 +1,77 @@
+name: CampusOne CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: campusone
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: campusone_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U campusone -d campusone_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://campusone:ci-only-password@127.0.0.1:5432/campusone_test
+      TEST_DATABASE_URL: postgresql://campusone:ci-only-password@127.0.0.1:5432/campusone_test
+      DEMO_PASSWORD: CI-demo-only-password-2026
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm run db:seed
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: docker build -t campusone:ci .
+
+  deploy:
+    needs: checks
+    # Set the repository variable only after the owner authorizes deployment.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.ENABLE_RAILWAY_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: campusone-production
+      cancel-in-progress: false
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+      RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+      RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+      RAILWAY_PUBLIC_URL: ${{ vars.RAILWAY_PUBLIC_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify deployment configuration
+        shell: bash
+        run: |
+          test -n "$RAILWAY_TOKEN"
+          test -n "$RAILWAY_PROJECT_ID"
+          test -n "$RAILWAY_SERVICE_ID"
+          test -n "$RAILWAY_ENVIRONMENT_ID"
+          test -n "$RAILWAY_PUBLIC_URL"
+      - run: npm install --global @railway/cli@5.64.0
+      - name: Deploy checked commit and wait for deployment outcome
+        run: railway up --project "$RAILWAY_PROJECT_ID" --service "$RAILWAY_SERVICE_ID" --environment "$RAILWAY_ENVIRONMENT_ID"
+      - name: Verify readiness and frontend
+        shell: bash
+        run: |
+          curl --fail --retry 12 --retry-delay 5 --retry-all-errors --max-time 10 "$RAILWAY_PUBLIC_URL/api/health/ready"
+          curl --fail --max-time 10 "$RAILWAY_PUBLIC_URL/"
