@@ -4,7 +4,7 @@ One campus application for attendance, club events, and campus complaints. React
 
 ## Current milestone
 
-Phase 1 foundation: seeded accounts, JWT login/logout, current-role authorization, role-specific landing screens, database schema, Docker setup, health endpoints, and CI. Attendance, event management, complaint workflows, and image upload/access are later slices; their UI cards are intentionally marked as upcoming. Database constraints prepare those slices but do not implement their API workflows.
+Phase 1.5: npm workspaces, institutional registration with email verification, Admin approval for privileged roles, JWT login/logout, role-specific landing screens, database schema, Docker setup, health endpoints, and CI. Attendance, event management, complaint workflows, and image upload/access are later slices; their UI cards are intentionally marked as upcoming. Database constraints prepare those slices but do not implement their API workflows.
 
 The academic demo uses synthetic data. The revised SRS target is 50–100 normal active users and 300 peak; these targets and the 500 ms read / 2 s write targets have not been established by load tests.
 
@@ -47,7 +47,7 @@ docker compose run --rm app npm run db:seed:built -w backend
 docker compose up -d app
 ```
 
-Open `http://localhost:3000`. The container serves UI and API from one origin. Local HTTP cookies omit `Secure`; Railway's HTTPS origin enables `Secure`. To run host development again, stop the app container with `docker compose stop app` to free port 3000. Database contents persist across restarts in `postgres-data`; do not remove the volume to restart the app.
+Open `http://localhost:3000`. The container serves UI and API from one origin. Compose explicitly uses development mode for local accounts and mail previews; the image itself defaults to production for Railway. Local HTTP cookies omit `Secure`; Railway's HTTPS origin enables `Secure`. To run host development again, stop the app container with `docker compose stop app` to free port 3000. Database contents persist across restarts in `postgres-data`; do not remove the volume to restart the app.
 
 ## Checks
 
@@ -97,10 +97,11 @@ Provision an application service and PostgreSQL through Railway's dashboard, the
 | `APP_ORIGIN` | Exact Railway HTTPS origin, no trailing slash |
 | `DATABASE_URL` | Reference PostgreSQL's private connection URL |
 | `JWT_SECRET` | Random secret, at least 32 characters |
-| `DEMO_PASSWORD` | Explicit synthetic-account password for the one-time seed |
+| `MAIL_MODE` | `smtp` (development previews are rejected in production) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Approved SMTP credentials and sender |
 | `STORAGE_MODE` | `database` for the approved fallback; bucket integration is a later slice |
 
-Railway supplies `PORT`. `railway.toml` selects the Dockerfile, runs `npm run db:migrate` before release, and checks readiness. Migrations must be backward-compatible; failure blocks deployment. Seeding is an explicit one-time operation, never an automatic migration step.
+Railway supplies `PORT`. `railway.toml` selects the Dockerfile, runs `npm run db:migrate` before release, and checks readiness. Migrations must be backward-compatible; failure blocks deployment. Demo seeding is forbidden in production. Use the trusted Admin bootstrap described below; migrations never create public demo accounts.
 
 Configure these GitHub repository values only after deployment authorization:
 
@@ -127,3 +128,37 @@ Local `decisions.md` and `workflow.md` are intentionally ignored. Track progress
 ## Portal interface
 
 Compact institutional forms and top navigation take layout cues from the supplied LMS screenshot and the public SSN LMS. The ProCoDe events reference informed readable poster/detail hierarchy. CampusOne uses an original SVG mark and illustration; no institutional photographs, logos or event artwork were copied or hotlinked. EventPoster preserves the complete image with object-fit: contain and has a missing-image fallback. Future modules remain explicit placeholders.
+
+## Institutional registration and approval
+
+- Public registration accepts only normalized, exact `@ssn.edu.in` addresses and Student, Staff or Club Head requests. Unknown fields (including roles, active state and verification flags) are rejected. Admin is never a public option.
+- Verification proves inbox control. Tokens contain 32 random bytes; only SHA-256 hashes are stored, expire after 30 minutes, and can be consumed once. Links use a URL fragment and a confirmation POST, so ordinary GET link scanners do not activate accounts.
+- Verified Students receive Student access. New Staff/Club Head accounts remain unable to sign in until approval. Club Head approval requires a real club; Staff approval may include existing class/subject offerings. A Staff account without assignments cannot manage any class. No extra Student role is silently granted to a new privileged applicant.
+- Verified users can request additional Staff/Club Head roles from Profile. Approval preserves existing roles and writes assignments and an audit record atomically. Only Admins can review requests; self-approval is refused. Rejection requires a reason.
+- Registrations and resends return the same generic response for existing/unknown eligible addresses. Duplicate signup never overwrites a password or request. Per-IP limits cover login, signup/resend, role requests and verification; resends also have a 60-second account cooldown. Limits are process-local.
+- Login requires active status, verified email and at least one approved role. Production also rejects all synthetic demo accounts. Login errors deliberately do not reveal which eligibility condition failed.
+- Existing local demo users keep their credentials. New databases need an explicit development seed; changing DEMO_PASSWORD does not reset existing users.
+
+### Local email verification
+
+With `NODE_ENV=development`, `MAIL_MODE=development` and a loopback APP_ORIGIN, verification emails are written to the ignored root `.local-mail/` directory. In local Compose it is bind-mounted at `/app/.local-mail`. Open the latest file for the test address, follow its link and select Confirm email address. This local preview is not evidence of owning a real inbox. No messages are sent to real SSN accounts in this mode. Never serve or commit this directory.
+
+Production refuses the development mail mode and requires SMTP configuration. `SMTP_PORT=465` uses implicit TLS; other configured ports require STARTTLS and normal certificate validation. No paid service is mandatory, but a permitted working SMTP account and network access must be supplied before deployment. Actual delivery and Railway outbound SMTP eligibility remain unverified. A failed send leaves the account unverified, records a generic server error, and permits a resend.
+
+### Trusted Admin bootstrap
+
+After an operator verifies the intended administrator out of band, set `ADMIN_NAME`, `ADMIN_EMAIL` (exact institutional domain) and `ADMIN_PASSWORD` (12–128 characters) privately, then run:
+
+```powershell
+npm run admin:bootstrap -w backend
+# In the built container:
+docker compose run --rm -e ADMIN_NAME -e ADMIN_EMAIL -e ADMIN_PASSWORD app npm run admin:bootstrap:built -w backend
+```
+
+This command creates an Admin only for a previously unused email; it refuses to modify an existing public account or reset its password. Remove bootstrap credentials afterward. Account recovery, invitations, role revocation and full class/club administration remain later work.
+
+### Phase 1.5 database change
+
+`backend/prisma/migrations/202610080002_registration/migration.sql` adds verification state, a demo marker, hashed email tokens and role requests. Pending accounts may have an empty role list; authentication denies them. It preserves current passwords, roles and module data and marks only the four known synthetic demo emails as locally verified. Other existing accounts remain unverified until explicitly verified. Back up data before migration; application rollback does not undo database changes.
+
+Focused PostgreSQL tests require `TEST_DATABASE_URL` pointing to an isolated test database. Without it, database tests are reported as skipped, not passed. SMTP delivery is tested through an injected local adapter; this is not a claim of real email delivery.

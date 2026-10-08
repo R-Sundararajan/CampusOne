@@ -15,3 +15,5 @@ coverage
 
 /local-demo-accounts.txt
 .local-mail/
+
+.local-backups/

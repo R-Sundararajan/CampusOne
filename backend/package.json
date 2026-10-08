@@ -14,7 +14,9 @@
     "db:migrate": "prisma migrate deploy",
     "db:dev": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:seed:built": "node dist/prisma/seed.js"
+    "db:seed:built": "node dist/prisma/seed.js",
+    "admin:bootstrap": "tsx prisma/bootstrap-admin.ts",
+    "admin:bootstrap:built": "node dist/prisma/bootstrap-admin.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",
@@ -26,6 +28,7 @@
     "express-rate-limit": "^8.2.0",
     "helmet": "^8.1.0",
     "jose": "^6.1.0",
+    "nodemailer": "^10.0.16",
     "pg": "^8.16.0",
     "prisma": "^7.0.0",
     "zod": "^4.1.0"
@@ -34,6 +37,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.15.0",
     "@types/supertest": "^6.0.0",
     "supertest": "^7.1.0",
