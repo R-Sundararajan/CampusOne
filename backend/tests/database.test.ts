@@ -15,10 +15,10 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('PostgreSQL foundation', () => {
   let app: Awaited<ReturnType<typeof createApp>>;
 
   beforeAll(async () => {
-    await db.user.create({ data: { id: key, name: 'Database Test', email: `${key}@campusone.example`, passwordHash: await hashPassword('DatabaseTest!2026'), roles: ['STUDENT'], department: 'CS' } });
+    await db.user.create({ data: { id: key, name: 'Database Test', email: `${key}@campusone.example`, passwordHash: await hashPassword('DatabaseTest!2026'), roles: ['STUDENT'], department: 'CS', isDemo: true, emailVerifiedAt: new Date() } });
     app = await createApp({
       config: { nodeEnv: 'test', appOrigin: origin, port: 3000, databaseUrl: process.env.TEST_DATABASE_URL!, jwtSecret: secret },
-      auth: authRepository(db), checkDatabase: async () => { await db.$queryRaw`SELECT 1`; },
+      auth: authRepository(db, true), checkDatabase: async () => { await db.$queryRaw`SELECT 1`; },
     });
   });
 

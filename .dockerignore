@@ -12,3 +12,7 @@ CampusOne*.jpeg
 **/tests
 coverage
 *.log
+
+/local-demo-accounts.txt
+.local-mail/
+.local-backups/
