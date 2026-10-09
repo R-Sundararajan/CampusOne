@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api, roleLabel, type RoleRequest } from "../services/api";
+import { ClubAccess } from "./ClubAccess";
 type Inbox = {
   requests: RoleRequest[];
   clubs: { id: string; name: string }[];
@@ -41,7 +42,11 @@ export function Approvals() {
       if (decision === "REJECTED" && !String(form.get("reason") ?? "").trim()) {
         throw new Error("Enter a reason before rejecting this request.");
       }
-      if (decision === "APPROVED" && form.has("clubId") && !form.get("clubId")) {
+      if (
+        decision === "APPROVED" &&
+        form.has("clubId") &&
+        !form.get("clubId")
+      ) {
         throw new Error("Select a club before approving Club Head access.");
       }
       await api("/admin/role-requests/" + id + "/decision", payload);
@@ -148,6 +153,7 @@ export function Approvals() {
           ))}
         </div>
       )}
+      <ClubAccess />
     </>
   );
 }

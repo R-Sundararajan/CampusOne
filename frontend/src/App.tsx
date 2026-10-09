@@ -8,6 +8,8 @@ import { Profile } from "./pages/Profile";
 import { Approvals } from "./pages/Approvals";
 import { Attendance } from "./pages/Attendance";
 
+import { Events } from "./pages/Events";
+
 export default function App() {
   const route = useRoute();
   const [user, setUser] = useState<User | null>(null);
@@ -52,7 +54,9 @@ export default function App() {
           {error}
         </p>
       )}
-      {route === "/attendance" ? (
+      {route === "/events" || route.startsWith("/events/") ? (
+        <Events key={route} user={user} route={route} />
+      ) : route === "/attendance" ? (
         <Attendance user={user} />
       ) : route === "/profile" ? (
         <Profile user={user} />

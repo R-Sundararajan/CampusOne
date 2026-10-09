@@ -12,7 +12,7 @@ const modules = [
     href: "/events",
     title: "Club events",
     description: "Campus events, club activities and registrations.",
-    phase: "Phase 3",
+    phase: "Available",
   },
   {
     href: "/complaints",
@@ -73,7 +73,7 @@ export function Dashboard({ user, route }: { user: User; route: string }) {
         <section className="panel">
           <div className="panel-title">
             <h2>Campus services</h2>
-            <span className="muted">Attendance is available</span>
+            <span className="muted">Attendance & events are available</span>
           </div>
           <div className="service-list">
             {visible.map((m, i) => (
@@ -91,8 +91,8 @@ export function Dashboard({ user, route }: { user: User; route: string }) {
             ))}
           </div>
           <p className="panel-footnote">
-            Open Attendance for class registers and reports. Events and campus
-            support are upcoming services.
+            Open Attendance for class records and Events for club activities.
+            Campus support is an upcoming service.
           </p>
         </section>
         <aside className="panel profile-summary">

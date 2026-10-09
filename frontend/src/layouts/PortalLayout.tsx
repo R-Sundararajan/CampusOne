@@ -58,7 +58,11 @@ export function PortalLayout({
             <Link
               key={href}
               href={href}
-              aria-current={route === href ? "page" : undefined}
+              aria-current={
+                route === href || (href !== "/" && route.startsWith(href + "/"))
+                  ? "page"
+                  : undefined
+              }
             >
               {label}
             </Link>

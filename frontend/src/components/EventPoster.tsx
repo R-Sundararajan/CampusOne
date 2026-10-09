@@ -1,5 +1,5 @@
 import { useState } from "react";
-// Reusable for the future event slice. No fabricated event records are rendered.
+// Shared 3:4 frame preserves complete portrait and landscape posters.
 export function EventPoster({ src, title }: { src?: string; title: string }) {
   const [failedSource, setFailedSource] = useState<string>();
   return (
@@ -13,9 +13,9 @@ export function EventPoster({ src, title }: { src?: string; title: string }) {
         />
       ) : (
         <span>
-          Event poster
+          {title}
           <br />
-          <small>Image unavailable</small>
+          <small>{src ? "Poster unavailable" : "Club event · CampusOne"}</small>
         </span>
       )}
     </div>
