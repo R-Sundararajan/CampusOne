@@ -4,7 +4,7 @@ One campus application for attendance, club events, and campus complaints. React
 
 ## Current milestone
 
-Phase 2 adds reusable class rosters, configurable register-number parsing, assigned faculty attendance marking and audited corrections, private student attendance, filtered reports and CSV export. Institutional registration, email verification, Admin privilege approval, authentication and the Phase 1.5 portal are preserved. Events, complaints and image workflows remain upcoming.
+Phase 2 adds reusable class rosters, configurable register-number parsing, assigned faculty attendance marking and audited corrections, private student attendance, filtered reports and CSV export. Institutional registration, email verification, Admin privilege approval, authentication and the Phase 1.5 portal are preserved. Phase 3 now adds club events, internal Student registration, Admin supervision and secure PostgreSQL poster storage. Complaints remain upcoming.
 
 The academic demo uses synthetic data. The revised SRS target is 50–100 normal active users and 300 peak; these targets and the 500 ms read / 2 s write targets have not been established by load tests.
 
@@ -113,7 +113,7 @@ The single workflow serializes deployment jobs and waits for the CLI deployment 
 
 ## Images, credits, and recovery
 
-Preferred image storage is a private Railway bucket, subject to actual account eligibility and networking. If unavailable, the approved fallback is raw PostgreSQL `bytea` in a separate image table, not object storage. It uses the existing database volume rather than a second upload volume. Later image slices enforce one JPEG/PNG per event/complaint, 2 MiB each, 50 MiB total, authorized reads, and no image bytes in list queries. Those upload/access/quota operations are not implemented in Phase 1.5.
+Preferred image storage is a private Railway bucket, subject to actual account eligibility and networking. If unavailable, the approved fallback is raw PostgreSQL `bytea` in a separate image table, not object storage. It uses the existing database volume rather than a second upload volume. Phase 3 implements one JPEG/PNG poster per event, 2 MiB input/stored image limits, a 50 MiB application-wide atomic quota, authorized reads and metadata-only listings. The shared storage service is ready for Phase 4 to reuse; complaint workflows are not implemented.
 
 Railway's trial and bucket-billing documents disagree about limited-trial bucket availability; inspect the actual account before relying on it. Both database and image usage consume storage/credits. No paid upgrade is permitted; continuous hosted availability is not guaranteed. Local Docker remains usable if Railway credits expire.
 
@@ -127,7 +127,7 @@ Local `decisions.md` and `workflow.md` are intentionally ignored. Track progress
 
 ## Portal interface
 
-Compact institutional forms and top navigation take layout cues from the supplied LMS screenshot and the public SSN LMS. The ProCoDe events reference informed readable poster/detail hierarchy. CampusOne uses an original SVG mark and illustration; no institutional photographs, logos or event artwork were copied or hotlinked. EventPoster preserves the complete image with object-fit: contain and has a missing-image fallback. Future modules remain explicit placeholders.
+Compact institutional forms and top navigation take layout cues from the supplied LMS screenshot and the public SSN LMS. The ProCoDe events reference informed readable poster/detail hierarchy. CampusOne uses an original SVG mark and illustration; no institutional photographs, logos or event artwork were copied or hotlinked. EventPoster preserves the complete image with object-fit: contain and has a missing-image fallback. Events now use that shared poster component, with authenticated images and local upload previews. Complaints remain an explicit placeholder.
 
 ## Institutional registration and approval
 
@@ -155,7 +155,7 @@ npm run admin:bootstrap -w backend
 docker compose run --rm -e ADMIN_NAME -e ADMIN_EMAIL -e ADMIN_PASSWORD app npm run admin:bootstrap:built -w backend
 ```
 
-This command creates an Admin only for a previously unused email; it refuses to modify an existing public account or reset its password. Remove bootstrap credentials afterward. Account recovery, invitations, role revocation and full class/club administration remain later work.
+This command creates an Admin only for a previously unused email; it refuses to modify an existing public account or reset its password. Remove bootstrap credentials afterward. Account recovery and invitations remain later work. Admin can grant/revoke assignments for approved Club Heads through the existing Approvals page.
 
 ### Phase 1.5 database change
 
@@ -215,3 +215,24 @@ Students see their own subjects, percentages and date/hour history. Reports incl
 The two Phase 2 migrations preserve existing users/attendance and convert account-dependent course enrollments into reusable class memberships. Back up the database first, then run the existing `db:generate`, `db:migrate` and local `db:seed` commands. Seeds remain disabled in production and do not create attendance sessions.
 
 See [the Phase 2 implementation and verification report](docs/phase2-attendance.md) for changes, API details, checks, manual evidence and limitations. No scale/response-time targets, live SMTP delivery, remote CI run or Railway deployment are claimed.
+
+## Phase 3 events
+
+Open **Events** to browse upcoming, ongoing and past published events. Search title/description, filter by club and sort by start time. Cards show complete posters; portrait and landscape images use `object-fit: contain`. The portal shares a natural ivory, sage and forest-green palette. The supplied ProCode reference refused connections during this phase, so its live appearance could not be verified; no external artwork or source was copied.
+
+Approved Club Heads use **My club events** to create drafts, upload posters, publish, edit and cancel events belonging to their current assignments. Drafts need only a title and club. Publishing also requires description, venue, a future start and an open registration deadline; optional end must follow start. The club cannot change after creation. Every modification, including poster changes, uses the current event version. Revocation takes effect immediately.
+
+Approved Students register internally and see **My registrations**. Student + Club Head users keep Student privileges. Registration is idempotent, uses the authenticated identity, and closes at the exact deadline or event start. Cancellation retains registrations. Admin uses **Event supervision** across clubs and **Approvals** for audited Club Head assignment changes. Admin may return an event with no registrations to draft; events with registrations must be cancelled to retain visible history. Counts represent registrations, not physical attendance.
+
+Dates are stored as UTC instants and displayed/entered in **Asia/Kolkata (IST, UTC+05:30)**. An event without an end time is categorized as past once it starts. JPEG/PNG posters are limited to 2 MiB, fully decoded and cleanly re-encoded, with a 24-million-pixel processing cap. Stored images share a transactionally locked 50 MiB budget. `STORAGE_MODE=database` is supported; private bucket integration remains deferred.
+
+Back up local data, then use the existing commands:
+
+```powershell
+npm ci
+npm run db:generate
+npm run db:migrate
+npm run dev
+```
+
+The two additive migrations preserve prior events/registrations and initialize the image budget from existing image metadata. No event records are added by the seed. See [the Phase 3 implementation report](docs/phase3-events.md) for APIs, migrations, files, test results, browser checks, commit hashes and limitations.
