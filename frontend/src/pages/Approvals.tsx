@@ -38,6 +38,12 @@ export function Approvals() {
               : { offeringIds: form.getAll("offeringIds") }),
           };
     try {
+      if (decision === "REJECTED" && !String(form.get("reason") ?? "").trim()) {
+        throw new Error("Enter a reason before rejecting this request.");
+      }
+      if (decision === "APPROVED" && form.has("clubId") && !form.get("clubId")) {
+        throw new Error("Select a club before approving Club Head access.");
+      }
       await api("/admin/role-requests/" + id + "/decision", payload);
       await load();
       setMessage(
