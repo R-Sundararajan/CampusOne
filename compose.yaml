@@ -17,7 +17,10 @@ services:
       retries: 10
     restart: unless-stopped
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_ATTENDANCE_WARNING_THRESHOLD: ${VITE_ATTENDANCE_WARNING_THRESHOLD:-75}
     environment:
       # Local demo only. The Docker image defaults to production on Railway.
       NODE_ENV: development

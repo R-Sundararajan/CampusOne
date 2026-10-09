@@ -6,6 +6,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { Dashboard } from "./pages/Dashboard";
 import { Profile } from "./pages/Profile";
 import { Approvals } from "./pages/Approvals";
+import { Attendance } from "./pages/Attendance";
 
 export default function App() {
   const route = useRoute();
@@ -51,7 +52,9 @@ export default function App() {
           {error}
         </p>
       )}
-      {route === "/profile" ? (
+      {route === "/attendance" ? (
+        <Attendance user={user} />
+      ) : route === "/profile" ? (
         <Profile user={user} />
       ) : route === "/approvals" && user.roles.includes("ADMIN") ? (
         <Approvals />

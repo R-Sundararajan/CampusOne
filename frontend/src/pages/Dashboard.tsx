@@ -6,7 +6,7 @@ const modules = [
     href: "/attendance",
     title: "Attendance",
     description: "Your subjects, class records and attendance reports.",
-    phase: "Phase 2",
+    phase: "Available",
   },
   {
     href: "/events",
@@ -73,7 +73,7 @@ export function Dashboard({ user, route }: { user: User; route: string }) {
         <section className="panel">
           <div className="panel-title">
             <h2>Campus services</h2>
-            <span className="muted">Available in upcoming releases</span>
+            <span className="muted">Attendance is available</span>
           </div>
           <div className="service-list">
             {visible.map((m, i) => (
@@ -91,8 +91,8 @@ export function Dashboard({ user, route }: { user: User; route: string }) {
             ))}
           </div>
           <p className="panel-footnote">
-            We’re building CampusOne one service at a time. These pages explain
-            what’s coming next.
+            Open Attendance for class registers and reports. Events and campus
+            support are upcoming services.
           </p>
         </section>
         <aside className="panel profile-summary">
