@@ -9,7 +9,7 @@
     "build": "tsc",
     "start": "node dist/src/index.js",
     "test": "vitest run",
-    "test:db": "vitest run tests/database.test.ts",
+    "test:db": "vitest run tests/database.test.ts tests/registration.test.ts tests/attendance.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:dev": "prisma migrate dev",
@@ -19,6 +19,7 @@
     "admin:bootstrap:built": "node dist/prisma/bootstrap-admin.js"
   },
   "dependencies": {
+    "@campusone/attendance-core": "0.1.0",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "argon2": "^0.44.0",

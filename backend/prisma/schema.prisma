@@ -53,10 +53,9 @@ model User {
   verification EmailVerification?
   roleRequests RoleRequest[]
   createdAt    DateTime @default(now())
-  enrollments  Enrollment[]
+  studentIdentity StudentIdentity?
   assignments  TeachingAssignment[]
   clubAssignments ClubAssignment[]
-  attendance   AttendanceRecord[]
   markedSessions AttendanceSession[]
   events       Event[]
   registrations EventRegistration[]
@@ -91,8 +90,45 @@ model ClassGroup {
   name     String
   section  String
   academicYear String
+  termId String?
+  term AcademicTerm? @relation(fields: [termId], references: [id])
+  department String @default("")
+  admissionBatch String @default("")
+  registerPrefix String @default("")
+  suffixWidth Int @default(3)
+  rosterVersion Int @default(0)
+  enrollments ClassEnrollment[]
   offerings CourseOffering[]
-  @@unique([name, section, academicYear])
+  @@unique([department, admissionBatch, name, section, academicYear])
+  @@index([termId])
+}
+
+model AcademicTerm {
+  id String @id @default(cuid())
+  name String @unique
+  classes ClassGroup[]
+}
+
+model StudentIdentity {
+  id String @id @default(cuid())
+  registerNumber String? @unique
+  name String?
+  userId String? @unique
+  user User? @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  enrollments ClassEnrollment[]
+  attendance AttendanceRecord[]
+}
+
+model ClassEnrollment {
+  studentId String
+  classGroupId String
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  student StudentIdentity @relation(fields: [studentId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
+  @@id([studentId, classGroupId])
+  @@index([classGroupId, active])
 }
 
 model Subject {
@@ -108,18 +144,9 @@ model CourseOffering {
   subjectId    String
   classGroup   ClassGroup @relation(fields: [classGroupId], references: [id])
   subject      Subject @relation(fields: [subjectId], references: [id])
-  enrollments  Enrollment[]
   assignments  TeachingAssignment[]
   sessions     AttendanceSession[]
   @@unique([classGroupId, subjectId])
-}
-
-model Enrollment {
-  studentId String
-  offeringId String
-  student User @relation(fields: [studentId], references: [id])
-  offering CourseOffering @relation(fields: [offeringId], references: [id])
-  @@id([studentId, offeringId])
 }
 
 model TeachingAssignment {
@@ -138,10 +165,14 @@ model AttendanceSession {
   markedById String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  submittedAt DateTime?
+  rosterSize Int @default(0)
+  version Int @default(1)
   offering CourseOffering @relation(fields: [offeringId], references: [id])
   markedBy User @relation(fields: [markedById], references: [id])
   records AttendanceRecord[]
   @@unique([offeringId, date, period])
+  @@index([offeringId, date])
 }
 
 model AttendanceRecord {
@@ -149,7 +180,9 @@ model AttendanceRecord {
   studentId String
   status AttendanceStatus
   session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  student User @relation(fields: [studentId], references: [id])
+  student StudentIdentity @relation(fields: [studentId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   @@id([sessionId, studentId])
   @@index([studentId])
 }

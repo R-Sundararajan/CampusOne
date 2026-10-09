@@ -8,6 +8,8 @@ import type { Config } from "./config.js";
 import type { AuthRepository } from "./modules/auth/repository.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import { registrationRoutes } from "./modules/registration/routes.js";
+import { attendanceRoutes } from "./modules/attendance/routes.js";
+import type { AttendanceService } from "./modules/attendance/service.js";
 import {
   AccountError,
   type RegistrationService,
@@ -19,6 +21,7 @@ export type AppDependencies = {
   checkDatabase: () => Promise<void>;
   staticDirectory?: string;
   registration?: RegistrationService;
+  attendance?: AttendanceService;
 };
 
 export async function createApp({
@@ -27,6 +30,7 @@ export async function createApp({
   checkDatabase,
   staticDirectory,
   registration,
+  attendance,
 }: AppDependencies) {
   const app = express();
   app.disable("x-powered-by");
@@ -53,6 +57,7 @@ export async function createApp({
     }
     next();
   });
+  app.use('/api/attendance', express.json({ limit: '256kb' }));
   app.use(express.json({ limit: "16kb" }));
   app.use(cookieParser());
   app.get("/api/health/live", (_req, res) => res.json({ status: "ok" }));
@@ -67,6 +72,7 @@ export async function createApp({
   app.use("/api/auth", await authRoutes(auth, config));
   if (registration)
     app.use("/api", registrationRoutes(registration, auth, config));
+  if (attendance) app.use('/api/attendance', attendanceRoutes(attendance, auth, config));
   // API errors must never be masked by the SPA fallback.
   app.use("/api", (_req, res) =>
     res.status(404).json({ error: "API route not found" }),

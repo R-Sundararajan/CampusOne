@@ -2,10 +2,12 @@ FROM node:24-bookworm-slim AS base
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 FROM base AS build
+ARG VITE_ATTENDANCE_WARNING_THRESHOLD=75
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/package.json
 COPY backend/package.json ./backend/package.json
+COPY shared ./shared
 RUN npm ci
 COPY backend ./backend
 COPY frontend ./frontend
@@ -17,6 +19,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /app/package.json /app/package-lock.json ./
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/shared ./shared
 COPY --from=build --chown=node:node /app/frontend/package.json ./frontend/package.json
 COPY --from=build --chown=node:node /app/frontend/dist ./frontend/dist
 COPY --from=build --chown=node:node /app/backend/package.json ./backend/package.json

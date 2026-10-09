@@ -1,0 +1,30 @@
+-- Preserve account-based enrollments and historical records as independent identities.
+CREATE TABLE "AcademicTerm" ("id" TEXT NOT NULL, "name" TEXT NOT NULL, CONSTRAINT "AcademicTerm_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "AcademicTerm_name_key" ON "AcademicTerm"("name");
+INSERT INTO "AcademicTerm" ("id", "name") SELECT 'legacy-term-' || md5("academicYear"), "academicYear" FROM "ClassGroup" GROUP BY "academicYear";
+ALTER TABLE "ClassGroup" ADD COLUMN "termId" TEXT, ADD COLUMN "department" TEXT NOT NULL DEFAULT '', ADD COLUMN "admissionBatch" TEXT NOT NULL DEFAULT '', ADD COLUMN "registerPrefix" TEXT NOT NULL DEFAULT '', ADD COLUMN "suffixWidth" INTEGER NOT NULL DEFAULT 3, ADD COLUMN "rosterVersion" INTEGER NOT NULL DEFAULT 0;
+UPDATE "ClassGroup" SET "termId" = 'legacy-term-' || md5("academicYear");
+DROP INDEX "ClassGroup_name_section_academicYear_key";
+CREATE UNIQUE INDEX "ClassGroup_department_admissionBatch_name_section_academicYear_key" ON "ClassGroup"("department", "admissionBatch", "name", "section", "academicYear");
+CREATE INDEX "ClassGroup_termId_idx" ON "ClassGroup"("termId");
+ALTER TABLE "ClassGroup" ADD CONSTRAINT "ClassGroup_termId_fkey" FOREIGN KEY ("termId") REFERENCES "AcademicTerm"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ClassGroup" ADD CONSTRAINT "ClassGroup_suffixWidth_check" CHECK ("suffixWidth" BETWEEN 1 AND 6);
+CREATE TABLE "StudentIdentity" ("id" TEXT NOT NULL, "registerNumber" TEXT, "name" TEXT, "userId" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "StudentIdentity_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "StudentIdentity_registerNumber_key" ON "StudentIdentity"("registerNumber");
+CREATE UNIQUE INDEX "StudentIdentity_userId_key" ON "StudentIdentity"("userId");
+ALTER TABLE "StudentIdentity" ADD CONSTRAINT "StudentIdentity_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+INSERT INTO "StudentIdentity" ("id", "name", "userId") SELECT "id", "name", "id" FROM "User" WHERE "id" IN (SELECT "studentId" FROM "Enrollment" UNION SELECT "studentId" FROM "AttendanceRecord");
+CREATE TABLE "ClassEnrollment" ("studentId" TEXT NOT NULL, "classGroupId" TEXT NOT NULL, "active" BOOLEAN NOT NULL DEFAULT true, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "ClassEnrollment_pkey" PRIMARY KEY ("studentId", "classGroupId"));
+INSERT INTO "ClassEnrollment" ("studentId", "classGroupId") SELECT DISTINCT e."studentId", o."classGroupId" FROM "Enrollment" e JOIN "CourseOffering" o ON o."id" = e."offeringId";
+ALTER TABLE "ClassEnrollment" ADD CONSTRAINT "ClassEnrollment_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "StudentIdentity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ClassEnrollment" ADD CONSTRAINT "ClassEnrollment_classGroupId_fkey" FOREIGN KEY ("classGroupId") REFERENCES "ClassGroup"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+CREATE INDEX "ClassEnrollment_classGroupId_active_idx" ON "ClassEnrollment"("classGroupId", "active");
+ALTER TABLE "AttendanceRecord" DROP CONSTRAINT "AttendanceRecord_studentId_fkey";
+ALTER TABLE "AttendanceRecord" ADD CONSTRAINT "AttendanceRecord_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "StudentIdentity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "AttendanceRecord" ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "AttendanceSession" ADD COLUMN "submittedAt" TIMESTAMP(3), ADD COLUMN "version" INTEGER NOT NULL DEFAULT 1;
+-- Incomplete legacy sessions are never included in reports.
+UPDATE "AttendanceSession" s SET "submittedAt" = s."createdAt" FROM "CourseOffering" o WHERE s."offeringId" = o."id" AND (SELECT count(*) FROM "AttendanceRecord" r WHERE r."sessionId" = s."id") > 0 AND (SELECT count(*) FROM "AttendanceRecord" r WHERE r."sessionId" = s."id") = (SELECT count(*) FROM "ClassEnrollment" e WHERE e."classGroupId" = o."classGroupId");
+ALTER TABLE "AttendanceSession" ADD CONSTRAINT "AttendanceSession_period_check" CHECK ("period" BETWEEN 1 AND 12);
+CREATE INDEX "AttendanceSession_offeringId_date_idx" ON "AttendanceSession"("offeringId", "date");
+DROP TABLE "Enrollment";

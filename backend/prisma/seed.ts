@@ -69,14 +69,22 @@ try {
         },
       });
     }
+    const term = await tx.academicTerm.upsert({
+      where: { name: "2026–2027" },
+      create: { name: "2026–2027" },
+      update: {},
+    });
     const group = await tx.classGroup.upsert({
       where: { id: "demo-class" },
-      update: {},
+      update: { termId: term.id },
       create: {
         id: "demo-class",
         name: "BSc CS Year 2",
         section: "A",
         academicYear: "2026–2027",
+        termId: term.id,
+        department: "Computer Science",
+        admissionBatch: "2025",
       },
     });
     const subject = await tx.subject.upsert({
@@ -106,14 +114,48 @@ try {
       where: { email: { in: demoUsers.map((user) => user.email) } },
     });
     for (const user of users.filter((user) => user.roles.includes("STUDENT"))) {
-      await tx.enrollment.upsert({
+      const registerNumber =
+        user.email === "student@campusone.example"
+          ? "3122255002062"
+          : "3122255002304";
+      const identity = await tx.studentIdentity.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: { userId: user.id, registerNumber, name: user.name },
+      });
+      if (!identity.registerNumber)
+        await tx.studentIdentity.update({
+          where: { id: identity.id },
+          data: { registerNumber },
+        });
+      await tx.classEnrollment.upsert({
         where: {
-          studentId_offeringId: { studentId: user.id, offeringId: offering.id },
+          studentId_classGroupId: {
+            studentId: identity.id,
+            classGroupId: group.id,
+          },
         },
         update: {},
-        create: { studentId: user.id, offeringId: offering.id },
+        create: { studentId: identity.id, classGroupId: group.id },
       });
     }
+    if (!group.registerPrefix)
+      await tx.classGroup.update({
+        where: { id: group.id },
+        data: {
+          registerPrefix: "3122255002",
+          suffixWidth: 3,
+          rosterVersion: { increment: 1 },
+        },
+      });
+    if (!group.department || !group.admissionBatch)
+      await tx.classGroup.update({
+        where: { id: group.id },
+        data: {
+          ...(!group.department ? { department: "Computer Science" } : {}),
+          ...(!group.admissionBatch ? { admissionBatch: "2025" } : {}),
+        },
+      });
     const staff = users.find(
       (user) => user.email === "staff@campusone.example",
     )!;

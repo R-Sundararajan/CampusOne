@@ -8,7 +8,8 @@
   },
   "workspaces": [
     "frontend",
-    "backend"
+    "backend",
+    "shared"
   ],
   "overrides": {
     "deepmerge-ts": "^8.0.2",
@@ -18,8 +19,8 @@
     "dev": "concurrently -k -n api,ui \"npm:dev:api\" \"npm:dev:ui\"",
     "dev:api": "npm run dev -w backend",
     "dev:ui": "npm run dev -w frontend",
-    "typecheck": "npm run typecheck --workspaces",
-    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
     "start": "npm run start -w backend",
     "test": "npm run test -w backend",
     "test:db": "npm run test:db -w backend",

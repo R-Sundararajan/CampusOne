@@ -4,6 +4,7 @@ import { createDatabase } from "./db.js";
 import { authRepository } from "./modules/auth/repository.js";
 import { registrationService } from "./modules/registration/service.js";
 import { createMailer } from "./services/mail.js";
+import { attendanceService } from './modules/attendance/service.js';
 
 const config = loadConfig();
 const db = createDatabase(config.databaseUrl);
@@ -11,6 +12,7 @@ const app = await createApp({
   config,
   auth: authRepository(db, config.nodeEnv !== "production"),
   registration: registrationService(db, createMailer(config), config.appOrigin),
+  attendance: attendanceService(db),
   checkDatabase: async () => {
     await db.$queryRaw`SELECT 1`;
   },
