@@ -15,6 +15,9 @@ import {
   type RegistrationService,
 } from "./modules/registration/service.js";
 
+import { eventsRoutes } from "./modules/events/routes.js";
+import type { EventsService } from "./modules/events/service.js";
+
 export type AppDependencies = {
   config: Config;
   auth: AuthRepository;
@@ -22,6 +25,7 @@ export type AppDependencies = {
   staticDirectory?: string;
   registration?: RegistrationService;
   attendance?: AttendanceService;
+  events?: EventsService;
 };
 
 export async function createApp({
@@ -31,6 +35,7 @@ export async function createApp({
   staticDirectory,
   registration,
   attendance,
+  events,
 }: AppDependencies) {
   const app = express();
   app.disable("x-powered-by");
@@ -40,7 +45,12 @@ export async function createApp({
     helmet({
       strictTransportSecurity:
         new URL(config.appOrigin).protocol === "https:" ? undefined : false,
-      contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } },
+      contentSecurityPolicy: {
+        directives: {
+          upgradeInsecureRequests: null,
+          imgSrc: ["'self'", "data:", "blob:"],
+        },
+      },
     }),
   );
   app.use("/api", (_req, res, next) => {
@@ -57,7 +67,7 @@ export async function createApp({
     }
     next();
   });
-  app.use('/api/attendance', express.json({ limit: '256kb' }));
+  app.use("/api/attendance", express.json({ limit: "256kb" }));
   app.use(express.json({ limit: "16kb" }));
   app.use(cookieParser());
   app.get("/api/health/live", (_req, res) => res.json({ status: "ok" }));
@@ -72,7 +82,9 @@ export async function createApp({
   app.use("/api/auth", await authRoutes(auth, config));
   if (registration)
     app.use("/api", registrationRoutes(registration, auth, config));
-  if (attendance) app.use('/api/attendance', attendanceRoutes(attendance, auth, config));
+  if (attendance)
+    app.use("/api/attendance", attendanceRoutes(attendance, auth, config));
+  if (events) app.use("/api/events", eventsRoutes(events, auth, config));
   // API errors must never be masked by the SPA fallback.
   app.use("/api", (_req, res) =>
     res.status(404).json({ error: "API route not found" }),

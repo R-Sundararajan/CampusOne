@@ -217,6 +217,84 @@ export function registrationService(
         })),
       };
     },
+    async clubAccess() {
+      const [clubs, heads, assignments] = await Promise.all([
+        db.club.findMany({
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        }),
+        db.user.findMany({
+          where: {
+            active: true,
+            emailVerifiedAt: { not: null },
+            roles: { has: "CLUB_HEAD" },
+          },
+          select: { id: true, name: true, email: true },
+          orderBy: { name: "asc" },
+        }),
+        db.clubAssignment.findMany({
+          select: {
+            userId: true,
+            clubId: true,
+            user: { select: { name: true } },
+            club: { select: { name: true } },
+          },
+        }),
+      ]);
+      return { clubs, heads, assignments };
+    },
+    async changeClubAccess(
+      actorId: string,
+      input: {
+        userId: string;
+        clubId: string;
+        active: boolean;
+        reason: string;
+      },
+    ) {
+      await db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Club" WHERE "id" = ${input.clubId} FOR UPDATE`;
+        const actor = await tx.user.findUnique({ where: { id: actorId } });
+        if (
+          !actor?.active ||
+          !actor.emailVerifiedAt ||
+          !actor.roles.includes("ADMIN")
+        )
+          throw new AccountError(403, "Admin access required.");
+        const user = await tx.user.findUnique({ where: { id: input.userId } });
+        if (
+          !user?.active ||
+          !user.emailVerifiedAt ||
+          !user.roles.includes("CLUB_HEAD")
+        )
+          throw new AccountError(400, "Select an approved Club Head.");
+        if (!(await tx.club.findUnique({ where: { id: input.clubId } })))
+          throw new AccountError(400, "Club not found.");
+        if (input.active)
+          await tx.clubAssignment.upsert({
+            where: {
+              userId_clubId: { userId: input.userId, clubId: input.clubId },
+            },
+            create: { userId: input.userId, clubId: input.clubId },
+            update: {},
+          });
+        else
+          await tx.clubAssignment.deleteMany({
+            where: { userId: input.userId, clubId: input.clubId },
+          });
+        await tx.auditLog.create({
+          data: {
+            actorId,
+            action: input.active
+              ? "CLUB_ACCESS_GRANTED"
+              : "CLUB_ACCESS_REVOKED",
+            entityType: "Club",
+            entityId: input.clubId,
+            changes: input,
+          },
+        });
+      });
+    },
     async decide(requestId: string, actorId: string, decision: Decision) {
       await db.$transaction(async (tx) => {
         const request = await tx.roleRequest.findUnique({
@@ -264,6 +342,7 @@ export function registrationService(
               );
             if (!(await tx.club.findUnique({ where: { id: decision.clubId } })))
               throw new AccountError(400, "Club not found");
+            await tx.$queryRaw`SELECT "id" FROM "Club" WHERE "id" = ${decision.clubId} FOR UPDATE`;
             await tx.clubAssignment.upsert({
               where: {
                 userId_clubId: { userId: user.id, clubId: decision.clubId },

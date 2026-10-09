@@ -27,6 +27,7 @@ enum AttendanceStatus {
 }
 
 enum EventStatus {
+  DRAFT
   PUBLISHED
   CANCELLED
 }
@@ -205,12 +206,14 @@ model ClubAssignment {
 model Event {
   id String @id @default(cuid())
   name String
-  description String
-  venue String
-  startsAt DateTime
-  registrationEndsAt DateTime
+  description String @default("")
+  venue String @default("")
+  startsAt DateTime?
+  endsAt DateTime?
+  registrationEndsAt DateTime?
   registrationLink String?
-  status EventStatus @default(PUBLISHED)
+  status EventStatus @default(DRAFT)
+  version Int @default(1)
   clubId String
   creatorId String
   createdAt DateTime @default(now())
@@ -220,15 +223,19 @@ model Event {
   registrations EventRegistration[]
   image Image?
   @@index([clubId, startsAt])
+  @@index([status, startsAt])
+  @@index([registrationEndsAt])
 }
 
 model EventRegistration {
+  id String @unique @default(cuid())
   eventId String
   studentId String
   createdAt DateTime @default(now())
   event Event @relation(fields: [eventId], references: [id])
   student User @relation(fields: [studentId], references: [id])
   @@id([eventId, studentId])
+  @@index([studentId, createdAt])
 }
 
 model Complaint {

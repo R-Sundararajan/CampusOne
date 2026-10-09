@@ -4,8 +4,12 @@ import { createDatabase } from "./db.js";
 import { authRepository } from "./modules/auth/repository.js";
 import { registrationService } from "./modules/registration/service.js";
 import { createMailer } from "./services/mail.js";
-import { attendanceService } from './modules/attendance/service.js';
+import { attendanceService } from "./modules/attendance/service.js";
 
+import { eventsService } from "./modules/events/service.js";
+
+if (process.env.STORAGE_MODE && process.env.STORAGE_MODE !== "database")
+  throw new Error("Only STORAGE_MODE=database is supported in Phase 3.");
 const config = loadConfig();
 const db = createDatabase(config.databaseUrl);
 const app = await createApp({
@@ -13,6 +17,7 @@ const app = await createApp({
   auth: authRepository(db, config.nodeEnv !== "production"),
   registration: registrationService(db, createMailer(config), config.appOrigin),
   attendance: attendanceService(db),
+  events: eventsService(db),
   checkDatabase: async () => {
     await db.$queryRaw`SELECT 1`;
   },

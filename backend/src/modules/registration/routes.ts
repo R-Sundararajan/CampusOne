@@ -42,12 +42,10 @@ export function registrationRoutes(
   router.post("/auth/register", registrationLimit, async (req, res) => {
     const parsed = registrationSchema.safeParse(req.body);
     if (!parsed.success) {
-      res
-        .status(400)
-        .json({
-          error:
-            "Use a valid @ssn.edu.in email, a full name, an allowed account type and matching passwords of 12–128 characters.",
-        });
+      res.status(400).json({
+        error:
+          "Use a valid @ssn.edu.in email, a full name, an allowed account type and matching passwords of 12–128 characters.",
+      });
       return;
     }
     await service.register(parsed.data);
@@ -75,11 +73,9 @@ export function registrationRoutes(
       .strict()
       .safeParse(req.body);
     if (!parsed.success) {
-      res
-        .status(400)
-        .json({
-          error: "Verification link is invalid or expired. Request a new link.",
-        });
+      res.status(400).json({
+        error: "Verification link is invalid or expired. Request a new link.",
+      });
       return;
     }
     res.json(await service.verify(parsed.data.token));
@@ -119,15 +115,46 @@ export function registrationRoutes(
     async (req, res) => {
       const parsed = decisionSchema.safeParse(req.body);
       if (!parsed.success) {
+        res.status(400).json({
+          error:
+            "Provide an allowed decision, valid assignments, and a reason for rejection.",
+        });
+        return;
+      }
+      await service.decide(String(req.params.id), req.user!.id, parsed.data);
+      res.status(204).end();
+    },
+  );
+  router.get(
+    "/admin/club-access",
+    authenticate,
+    requireRoles("ADMIN"),
+    async (_req, res) => res.json(await service.clubAccess()),
+  );
+  router.post(
+    "/admin/club-access",
+    authenticate,
+    requireRoles("ADMIN"),
+    async (req, res) => {
+      const input = z
+        .object({
+          userId: z.string().min(1).max(100),
+          clubId: z.string().min(1).max(100),
+          active: z.boolean(),
+          reason: z.string().trim().min(3).max(500),
+        })
+        .strict()
+        .safeParse(req.body);
+      if (!input.success) {
         res
           .status(400)
           .json({
             error:
-              "Provide an allowed decision, valid assignments, and a reason for rejection.",
+              "Select a Club Head and club, and give a reason for this access change.",
           });
         return;
       }
-      await service.decide(String(req.params.id), req.user!.id, parsed.data);
+      await service.changeClubAccess(req.user!.id, input.data);
       res.status(204).end();
     },
   );
