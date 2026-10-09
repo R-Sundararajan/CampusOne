@@ -4,7 +4,7 @@ One campus application for attendance, club events, and campus complaints. React
 
 ## Current milestone
 
-Phase 1.5: npm workspaces, institutional registration with email verification, Admin approval for privileged roles, JWT login/logout, role-specific landing screens, database schema, Docker setup, health endpoints, and CI. Attendance, event management, complaint workflows, and image upload/access are later slices; their UI pages are intentionally marked as upcoming. Database constraints prepare those slices but do not implement their API workflows.
+Phase 2 adds reusable class rosters, configurable register-number parsing, assigned faculty attendance marking and audited corrections, private student attendance, filtered reports and CSV export. Institutional registration, email verification, Admin privilege approval, authentication and the Phase 1.5 portal are preserved. Events, complaints and image workflows remain upcoming.
 
 The academic demo uses synthetic data. The revised SRS target is 50–100 normal active users and 300 peak; these targets and the 500 ms read / 2 s write targets have not been established by load tests.
 
@@ -198,4 +198,20 @@ Verified locally:
 
 There are no outstanding failed application checks. The first clean-install attempt encountered a Windows file lock held by Vite; stopping Vite allowed the clean install to pass. Earlier sandbox loopback restrictions were resolved by running the local tests with appropriate access. A remote GitHub Actions run and live SMTP delivery are not claimed.
 
-The two synthetic browser-verification accounts are marked `isDemo` and their credentials are recorded only in the ignored local file. Local previews and a pre-migration backup remain ignored. Keep them out of production data. The next implementation milestone is Phase 2 attendance marking, viewing, corrections and reports.
+The two synthetic browser-verification accounts are marked `isDemo` and their credentials are recorded only in the ignored local file. Local previews and pre-migration backups remain ignored. Keep them out of production data.
+
+## Phase 2 attendance
+
+Open **Attendance** after signing in. Admin uses **Academic setup** to create terms/classes/subjects and grant or revoke teaching assignments. Admin and assigned Staff use **Class rosters** to preview register-number imports. Set a numeric prefix and a suffix width (1–6, default 3); enter suffixes such as `62-132, 304, 305`. Preview shows full string register numbers, duplicates, additions, existing members and unmatched accounts. Imports are additive; omitted students stay enrolled, inactive students stay inactive, and historical attendance is retained. A class supports at most 1,000 active students.
+
+Unmatched numbers remain independent student identities. Admin can link them to active, verified Student accounts after checking institutional records, entering evidence and confirming the link. Public registration and Student requests cannot claim register numbers. Migrated accounts with no register number need this reconciliation before faculty can mark their roster.
+
+Assigned faculty select a class, subject, date and hour, then load the official roster or existing session. Enter present suffixes (default) or absent suffixes, calculate the preview, toggle individual statuses, and confirm the save. Empty input and unknown numbers block saving. Mark-all actions require an additional explicit confirmation. Existing sessions require a correction reason and a current version; only changed statuses create audit entries. Concurrent submissions, stale previews and partial saves are protected by transactions, class locks and database constraints.
+
+Students see their own subjects, percentages and date/hour history. Reports include only complete submitted sessions and calculate percentages from persisted records. Staff reports/exports are scoped to assigned subjects; Admin can view all classes. CSV is UTF-8 with a BOM, quoted fields and protection against spreadsheet formula injection. Import the register-number column as **Text** in spreadsheet applications to preserve leading zeroes and long identifiers.
+
+`VITE_ATTENDANCE_WARNING_THRESHOLD` sets the UI reminder threshold (0–100, default 75). For Compose, set it in the root `.env`; for host Vite, use the ignored `frontend/.env.local` or export the variable in your shell. Restart Vite for development or rebuild the frontend/Compose image after changing it. It is a display policy, not an enforced attendance regulation. Direct Docker builds can use `--build-arg VITE_ATTENDANCE_WARNING_THRESHOLD=75`.
+
+The two Phase 2 migrations preserve existing users/attendance and convert account-dependent course enrollments into reusable class memberships. Back up the database first, then run the existing `db:generate`, `db:migrate` and local `db:seed` commands. Seeds remain disabled in production and do not create attendance sessions.
+
+See [the Phase 2 implementation and verification report](docs/phase2-attendance.md) for changes, API details, checks, manual evidence and limitations. No scale/response-time targets, live SMTP delivery, remote CI run or Railway deployment are claimed.
