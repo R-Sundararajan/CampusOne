@@ -4,7 +4,7 @@ One campus application for attendance, club events, and campus complaints. React
 
 ## Current milestone
 
-Phase 1.5: npm workspaces, institutional registration with email verification, Admin approval for privileged roles, JWT login/logout, role-specific landing screens, database schema, Docker setup, health endpoints, and CI. Attendance, event management, complaint workflows, and image upload/access are later slices; their UI cards are intentionally marked as upcoming. Database constraints prepare those slices but do not implement their API workflows.
+Phase 1.5: npm workspaces, institutional registration with email verification, Admin approval for privileged roles, JWT login/logout, role-specific landing screens, database schema, Docker setup, health endpoints, and CI. Attendance, event management, complaint workflows, and image upload/access are later slices; their UI pages are intentionally marked as upcoming. Database constraints prepare those slices but do not implement their API workflows.
 
 The academic demo uses synthetic data. The revised SRS target is 50–100 normal active users and 300 peak; these targets and the 500 ms read / 2 s write targets have not been established by load tests.
 
@@ -113,7 +113,7 @@ The single workflow serializes deployment jobs and waits for the CLI deployment 
 
 ## Images, credits, and recovery
 
-Preferred image storage is a private Railway bucket, subject to actual account eligibility and networking. If unavailable, the approved fallback is raw PostgreSQL `bytea` in a separate image table, not object storage. It uses the existing database volume rather than a second upload volume. Later image slices enforce one JPEG/PNG per event/complaint, 2 MiB each, 50 MiB total, authorized reads, and no image bytes in list queries. Those upload/access/quota operations are not implemented in Phase 1.
+Preferred image storage is a private Railway bucket, subject to actual account eligibility and networking. If unavailable, the approved fallback is raw PostgreSQL `bytea` in a separate image table, not object storage. It uses the existing database volume rather than a second upload volume. Later image slices enforce one JPEG/PNG per event/complaint, 2 MiB each, 50 MiB total, authorized reads, and no image bytes in list queries. Those upload/access/quota operations are not implemented in Phase 1.5.
 
 Railway's trial and bucket-billing documents disagree about limited-trial bucket availability; inspect the actual account before relying on it. Both database and image usage consume storage/credits. No paid upgrade is permitted; continuous hosted availability is not guaranteed. Local Docker remains usable if Railway credits expire.
 
@@ -162,3 +162,40 @@ This command creates an Admin only for a previously unused email; it refuses to 
 `backend/prisma/migrations/202610080002_registration/migration.sql` adds verification state, a demo marker, hashed email tokens and role requests. Pending accounts may have an empty role list; authentication denies them. It preserves current passwords, roles and module data and marks only the four known synthetic demo emails as locally verified. Other existing accounts remain unverified until explicitly verified. Back up data before migration; application rollback does not undo database changes.
 
 Focused PostgreSQL tests require `TEST_DATABASE_URL` pointing to an isolated test database. Without it, database tests are reported as skipped, not passed. SMTP delivery is tested through an injected local adapter; this is not a claim of real email delivery.
+
+## Phase 1.5 completion — 2026-10-09
+
+```text
+CampusOne/
+├── frontend/
+│   ├── src/{components,hooks,layouts,pages,services,styles}
+│   ├── package.json
+│   └── vite.config.ts
+├── backend/
+│   ├── src/{modules/auth,modules/registration,services,generated}
+│   ├── prisma/{migrations,schema.prisma,seed.ts,bootstrap-admin.ts}
+│   ├── tests/
+│   └── package.json
+├── .github/workflows/ci.yml
+├── Dockerfile, compose.yaml, railway.toml
+├── package.json, package-lock.json, .env.example
+└── decisions.md, workflow.md, local-demo-accounts.txt (ignored local references)
+```
+
+Review branches are retained locally: `chore/monorepo-restructure` (36fa3c7), `feature/frontend-redesign` (2af73ff; original feature 0d74a20), and `feature/backend-registration` (1f5ebd7). Their combined result is on `integration/campusone-phase1-5`. The prior uncommitted foundation was preserved as a3b09de on the restructuring branch. No branches were pushed or merged into main.
+
+Verified locally:
+
+- 27 Vitest tests passed against isolated PostgreSQL; root type checking and both independent workspace builds passed.
+- Docker image built; Compose app/database are healthy; runtime migration, idempotent seed, readiness, SPA routes and API 404 boundaries passed.
+- All four original demo accounts logged in with their preserved credentials.
+- Desktop Student signup, local email confirmation, additional-role request and cumulative-role approval passed.
+- Mobile Staff signup, password mismatch feedback, verification, pending-login refusal and approved login passed at 390 × 844; no horizontal overflow was found.
+- Admin club assignment, selected teaching assignment and rejection with a reason passed. Missing-club and missing-reason errors are specific.
+- Refresh/login persistence and persistent logout passed. Root `npm run dev` and browser authentication/decisions through the Vite proxy passed.
+- Accessible labels, heading hierarchy, alert/status messages, role-aware navigation and the event fallback’s 3:4 proportions were inspected. Actual event artwork/upload remains future work.
+- Production-mode built static serving/readiness passed; synthetic demo users, development verification and demo seeding were refused. No real email was sent.
+
+There are no outstanding failed application checks. The first clean-install attempt encountered a Windows file lock held by Vite; stopping Vite allowed the clean install to pass. Earlier sandbox loopback restrictions were resolved by running the local tests with appropriate access. A remote GitHub Actions run and live SMTP delivery are not claimed.
+
+The two synthetic browser-verification accounts are marked `isDemo` and their credentials are recorded only in the ignored local file. Local previews and a pre-migration backup remain ignored. Keep them out of production data. The next implementation milestone is Phase 2 attendance marking, viewing, corrections and reports.
