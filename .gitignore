@@ -1,2 +1,17 @@
-CampusOne_HLD.jpeg
+CampusOne_HLDLLDs/
 CampusOne_ReqSpecs.md
+/decisions.md
+/workflow.md
+node_modules/
+dist/
+backend/src/generated/
+.env
+.env.*
+!.env.example
+coverage/
+*.log
+CampusOne (1).md
+/local-demo-accounts.txt
+.local-mail/
+
+.local-backups/
