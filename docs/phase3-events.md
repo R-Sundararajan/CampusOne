@@ -1,5 +1,7 @@
 # Phase 3 — Events implementation and verification
 
+> Historical implementation/verification record. Current deployment: [Render + Neon operator guide](render-neon-deployment.md). Previous platform references describe this phase only.
+
 Verified locally on 2026-10-09. No push, main merge, Railway deployment or production data change.
 
 ## Branch and commits

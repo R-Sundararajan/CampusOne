@@ -1,0 +1,2 @@
+# Container startup scripts must remain POSIX-compatible on Windows checkouts.
+*.sh text eol=lf

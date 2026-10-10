@@ -9,7 +9,7 @@ import { hashPassword } from "../src/modules/auth/routes.js";
 const url = process.env.TEST_DATABASE_URL;
 if (!url || !/test/i.test(new URL(url).pathname)) throw new Error("TEST_DATABASE_URL must name an isolated test database");
 const db = createDatabase(url), key = "upgrade-" + randomUUID();
-const migrate = () => execFileSync(process.execPath, ["../node_modules/prisma/build/index.js", "migrate", "deploy"], { env: { ...process.env, DATABASE_URL: url }, stdio: "pipe", timeout: 60000 });
+const migrate = () => execFileSync(process.execPath, ["../node_modules/prisma/build/index.js", "migrate", "deploy"], { env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url }, stdio: "pipe", timeout: 60000 });
 const bytes = new Uint8Array([10, 20, 30, 40]);
 try {
   // Phase 5 deliberately keeps the Phase 4 schema and all seven migration checksums.

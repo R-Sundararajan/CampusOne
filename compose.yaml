@@ -22,7 +22,7 @@ services:
       args:
         VITE_ATTENDANCE_WARNING_THRESHOLD: ${VITE_ATTENDANCE_WARNING_THRESHOLD:-75}
     environment:
-      # Local demo only. The Docker image defaults to production on Railway.
+      # Local demo only. The Docker image defaults to production on Render.
       NODE_ENV: development
       HOST: 0.0.0.0
       MAIL_MODE: development

@@ -1,12 +1,12 @@
 # CampusOne
 
-One campus application for attendance, club events, and campus complaints. React/Vite and Express run together in one Docker container; PostgreSQL stores structured data. Railway is the only planned cloud provider.
+One campus application for attendance, club events, and campus complaints. React/Vite and Express run together in one Docker container; PostgreSQL stores structured data. Render hosts the application; Neon PostgreSQL stores structured data and image bytes. GitHub Actions validates commits, and Render deploys main only after CI checks pass.
 
-Release integration, test evidence and deployment runbook: [Phase 5](docs/phase5-integration-deployment.md). Module details: [Attendance](docs/phase2-attendance.md), [Events](docs/phase3-events.md), [Complaints](docs/phase4-complaints.md).
+Current [deployment guide](docs/render-neon-deployment.md) and [architecture decisions](docs/architecture.md). Historical release integration and test evidence: [Phase 5](docs/phase5-integration-deployment.md). Module details: [Attendance](docs/phase2-attendance.md), [Events](docs/phase3-events.md), [Complaints](docs/phase4-complaints.md).
 
 ## Current milestone
 
-Phases 1–4 are integrated on `integration/campusone-release`, based on the verified Complaints tip `08e01f4`. Phase 5 adds explicit domain-only demo registration and guarded Railway CI/CD. Local verification: 176 application tests plus 4 release guard tests, typechecks, builds, Docker production startup, migrations and backup restoration pass. Cloud deployment remains disabled pending owner authorization.
+The integrated MVP is on main. The approved production architecture is one Render Docker Web Service, Neon PostgreSQL and GitHub Actions CI. Prior Phase 5 local verification recorded 176 application tests and 4 former deployment guard tests; that historical evidence does not validate the new cloud setup. This change adds startup migrations and generic HTTP release guards. Provisioning, main protection and live deployment require owner completion of the deployment guide.
 
 `INSTITUTIONAL_AUTH_MODE=domain-only-demo` accepts the exact normalized `@ssn.edu.in` domain and sends no verification email. Students can sign in immediately; Staff and Club Heads require Admin approval. **This is insecure for genuine institutional identity assurance:** anyone can claim an unused institutional address. Admins must verify identity out of band before granting privileges or linking student records. `emailVerifiedAt` stays null for demo registration and bootstrap.
 
@@ -14,7 +14,7 @@ The academic demo uses synthetic data. The revised SRS target is 50–100 normal
 
 ## Local development
 
-Prerequisites: Node.js 24, npm, and Docker Desktop running Linux containers. No Railway account is needed locally.
+Prerequisites: Node.js 24, npm, and Docker Desktop running Linux containers. No cloud account is needed locally.
 
 1. Copy `.env.example` to `.env`. Replace `JWT_SECRET` with a random secret of at least 32 characters; choose `DEMO_PASSWORD` (12–128 characters). The sample database credentials are for localhost only. Use URL-safe characters for the Compose database password, or correctly encode credentials if building a custom connection URL.
 2. Install dependencies and start PostgreSQL:
@@ -51,7 +51,7 @@ docker compose run --rm app npm run db:seed:built -w backend
 docker compose up -d app
 ```
 
-Open `http://localhost:3000`. The container serves UI and API from one origin. Compose explicitly uses development mode for local accounts and mail previews; the image itself defaults to production for Railway. Local HTTP cookies omit `Secure`; Railway's HTTPS origin enables `Secure`. To run host development again, stop the app container with `docker compose stop app` to free port 3000. Database contents persist across restarts in `postgres-data`; do not remove the volume to restart the app.
+Open `http://localhost:3000`. The container serves UI and API from one origin. Compose explicitly uses development mode for local accounts and mail previews; the image itself defaults to production for Render. Local HTTP cookies omit `Secure`; Render's HTTPS origin enables `Secure`. To run host development again, stop the app container with `docker compose stop app` to free port 3000. Database contents persist across restarts in `postgres-data`; do not remove the volume to restart the app.
 
 ## Checks
 
@@ -59,6 +59,7 @@ Open `http://localhost:3000`. The container serves UI and API from one origin. C
 npm run db:generate
 npm run typecheck
 npm test
+npm run test:release
 npm run build
 ```
 
@@ -68,13 +69,15 @@ Ordinary tests use a small in-memory authentication repository. PostgreSQL check
 docker compose exec db createdb -U campusone campusone_test
 $env:DATABASE_URL = 'postgresql://campusone:campusone@127.0.0.1:5432/campusone_test'
 $env:TEST_DATABASE_URL = $env:DATABASE_URL
+$env:DIRECT_URL = $env:DATABASE_URL
 npm run db:migrate
 npm test
 Remove-Item Env:DATABASE_URL
 Remove-Item Env:TEST_DATABASE_URL
+Remove-Item Env:DIRECT_URL
 ```
 
-CI uses a fresh PostgreSQL service, applies all seven migrations, verifies a representative Phase 4 upgrade twice, seeds twice, runs all application and release guard tests/typechecks/builds, builds Docker and checks production startup without SMTP plus readiness/frontend assets. Keep automated suites separate from populated browser QA databases: several module tests deliberately exercise global counts and all five Supervisor slots.
+CI uses a fresh PostgreSQL service, applies all seven migrations, verifies a representative Phase 4 upgrade twice, seeds twice, runs all application and release guard tests/typechecks/builds, builds Docker and checks production startup without SMTP on a separate empty database, readiness/frontend assets, restart idempotency and migration failure before HTTP. Keep automated suites separate from populated browser QA databases: several module tests deliberately exercise global counts and all five Supervisor slots.
 
 Dependency overrides select patched `deepmerge-ts` and `mysql2` versions used by the Prisma CLI. Client generation and database migrations have been exercised with these versions; keep those checks when updating dependencies.
 
@@ -89,40 +92,21 @@ Dependency overrides select patched `deepmerge-ts` and `mysql2` versions used by
 - `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`; `/api/auth/admin-check` is a foundation permission check.
 - `/api/health/live` checks the process; `/api/health/ready` checks database connectivity.
 
-## Railway deployment — disabled until authorized
+## Render + Neon deployment
 
-Use the college Railway account and Trial/Free only. Do not link this repository as a Railway deployment source. Account verification through GitHub is separate from connecting a repository for automatic deployment.
+Follow the [operator guide](docs/render-neon-deployment.md) for the exact owner procedure. The root `render.yaml` selects one Free Docker Web Service on GitHub `main`, `autoDeployTrigger: checksPass` (**After CI Checks Pass**) and `/api/health/ready`. GitHub Actions keeps PostgreSQL, migration, test, build and production Docker checks; it never deploys directly. Protect main separately with required `checks` and maintainer review.
 
-Provision an application service and PostgreSQL through Railway's dashboard, then configure:
+Configure `NODE_ENV=production`, `PORT=3000` (or Render's assigned port), the exact HTTPS `APP_ORIGIN`, Neon pooled `DATABASE_URL`, direct migration `DIRECT_URL` for the same database, a private random `JWT_SECRET`, `INSTITUTIONAL_AUTH_MODE=domain-only-demo` and `STORAGE_MODE=database`. Production listens on `0.0.0.0` by default. No cloud credentials belong in GitHub CI.
 
-| Runtime variable | Value |
-|---|---|
-| `NODE_ENV` | `production` |
-| `APP_ORIGIN` | Exact Railway HTTPS origin, no trailing slash |
-| `DATABASE_URL` | Reference PostgreSQL's private connection URL |
-| `JWT_SECRET` | Random secret, at least 32 characters |
-| `INSTITUTIONAL_AUTH_MODE` | `domain-only-demo` for the owner-approved academic demonstration |
-| `MAIL_MODE`, `SMTP_*` | Not required or used in domain-only-demo; only legacy email-verification needs production SMTP |
-| `STORAGE_MODE` | `database` for the approved fallback; bucket integration is a later slice |
+The default image CMD validates configuration, runs `npm run db:migrate` once per startup and starts Node only after migrations succeed. Completed migrations are not reapplied on restart. The non-root pruned runtime contains the Prisma CLI, schema/config/migrations and compiled server. No paid pre-deploy command, interactive shell, production seed or default Admin is required. Use the guide's authorized local compiled bootstrap procedure for the first administrator.
 
-Railway supplies `PORT`. `railway.toml` selects the Dockerfile, runs `npm run db:migrate` before release, and checks readiness. Migrations must be backward-compatible; failure blocks deployment. Demo seeding is forbidden in production. Use the trusted Admin bootstrap described below; migrations never create public demo accounts.
+## Images, free plans and recovery
 
-Configure these GitHub repository values only after deployment authorization:
+Neon stores raw PostgreSQL `bytea` in separate image tables through the existing shared service: one JPEG/PNG per record, 2 MiB input/stored limits, a shared 50 MiB atomic quota, authorized reads and metadata-only listings. Complaint images remain private to the submitter, Admin and current authorized assigned Supervisor.
 
-- GitHub environment: `production`; configure owner review/protection rules.
-- Secret: environment-scoped `RAILWAY_TOKEN` (Railway project/environment token).
-- Variables: `RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_PUBLIC_URL` (HTTPS origin without trailing slash).
-- Repository variable `ENABLE_RAILWAY_DEPLOY=true` enables deployment of successful pushes to `main`. Keep it absent/false until the owner authorizes release. Pull requests never deploy and never receive the deployment token.
+Render Free can spin down and cold-start; its filesystem is ephemeral. Neon storage/connection/usage allowances and external network limits affect availability. Use one application instance and preserve the five-connection runtime pool. No zero-downtime schema, scale or cloud availability guarantee is claimed.
 
-The single workflow serializes deployment jobs. Railway CLI 5.64.2 uploads the checked source to the exact project/service/environment; the script captures its deployment ID and polls that exact deployment to SUCCESS before checking readiness, home and built JS/CSS assets. A successful build or an older healthy deployment cannot mask a failed migration/startup. Railway rebuilds the checked source with the Dockerfile/lockfile rather than promoting the identical CI image.
-
-## Images, credits, and recovery
-
-Preferred image storage is a private Railway bucket, subject to actual account eligibility and networking. If unavailable, the approved fallback is raw PostgreSQL `bytea` in a separate image table, not object storage. It uses the existing database volume rather than a second upload volume. Events and complaints reuse one image-storage service: one JPEG/PNG per record, 2 MiB input/stored limits, a shared 50 MiB atomic quota, authorized reads and metadata-only listings. Complaint images are private to the submitter, Admin and current authorized assigned Supervisor.
-
-Railway's trial and bucket-billing documents disagree about limited-trial bucket availability; inspect the actual account before relying on it. Both database and image usage consume storage/credits. No paid upgrade is permitted; continuous hosted availability is not guaranteed. Local Docker remains usable if Railway credits expire.
-
-Before database changes, preserve a backup and practice restoration into a separate database. Phase 5 rehearsed local PostgreSQL backup/restore and compared all 23 tables. Use Railway rollback or redeploy a compatible known-good commit for application recovery; application rollback does not undo migrations. Cloud rollback remains unexecuted; see the Phase 5 runbook.
+Before database changes, preserve a backup and practice restoration into a separate database. Prior Phase 5 local PostgreSQL backup/restore compared all 23 tables. Redeploy a compatible reviewed commit for application recovery; application rollback does not undo migrations. Current cloud backup/rollback remains unexecuted; see the operator guide.
 
 Local `decisions.md` and `workflow.md` are intentionally ignored. Track progress there without committing them.
 
@@ -152,6 +136,8 @@ Only production `email-verification` refuses development mail and requires SMTP.
 
 ### Trusted Admin bootstrap
 
+For Render Free, use the [authorized local compiled bootstrap procedure](docs/render-neon-deployment.md#6-bootstrap-the-first-administrator-locally). The commands below are local development alternatives.
+
 After an operator verifies the intended administrator out of band, set `ADMIN_NAME`, `ADMIN_EMAIL` (exact institutional domain) and `ADMIN_PASSWORD` (12–128 characters) privately, then run:
 
 ```powershell
@@ -169,6 +155,8 @@ This command creates an Admin only for a previously unused email; it refuses to 
 Focused PostgreSQL tests require `TEST_DATABASE_URL` pointing to an isolated test database. Without it, database tests are reported as skipped, not passed. SMTP delivery is tested through an injected local adapter; this is not a claim of real email delivery.
 
 ## Historical Phase 1.5 completion — 2026-10-09
+
+The following branch/layout/test record describes that phase, not the current deployment configuration.
 
 ```text
 CampusOne/
