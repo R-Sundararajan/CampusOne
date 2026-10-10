@@ -15,15 +15,17 @@ const config = loadConfig();
 const db = createDatabase(config.databaseUrl);
 const app = await createApp({
   config,
-  auth: authRepository(db, config.nodeEnv !== "production"),
-  registration: registrationService(db, createMailer(config), config.appOrigin),
-  attendance: attendanceService(db),
-  events: eventsService(db),
-  complaints: complaintsService(db, config.nodeEnv !== "production"),
+  auth: authRepository(db, config.nodeEnv !== "production", config.institutionalAuthMode),
+  registration: registrationService(db, createMailer(config), config.appOrigin, config.institutionalAuthMode, config.nodeEnv !== "production"),
+  attendance: attendanceService(db, config.institutionalAuthMode, config.nodeEnv !== "production"),
+  events: eventsService(db, undefined, config.institutionalAuthMode),
+  complaints: complaintsService(db, config.nodeEnv !== "production", config.institutionalAuthMode),
   checkDatabase: async () => {
     await db.$queryRaw`SELECT 1`;
   },
 });
+if (config.institutionalAuthMode === "domain-only-demo")
+  console.warn("INSECURE academic demo: email domain eligibility does not verify mailbox ownership or institutional identity. Admins must verify identity out of band.");
 const server = app.listen(
   config.port,
   config.host ?? (config.nodeEnv === "production" ? "0.0.0.0" : "127.0.0.1"),

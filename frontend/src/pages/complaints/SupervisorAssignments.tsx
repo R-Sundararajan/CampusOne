@@ -12,7 +12,7 @@ export function SupervisorAssignments({ catalog, refresh }: { catalog: Catalog; 
   async function save() {
     if (!pending) return; setBusy(true);
     try {
-      const r = await api<{ transferredCases: number }>("/complaints/supervisors/" + pending.slot.studentGroup, { userId: pending.userId, reason: pending.reason, version: pending.slot.version });
+      const r = await api<{ transferredCases: number }>("/complaints/supervisors/" + pending.slot.studentGroup, { userId: pending.userId, reason: pending.reason, version: pending.slot.version, identityConfirmed: !!pending.userId });
       setMessage(`Assignment saved. ${r.transferredCases} unresolved case(s) updated.`); setPending(undefined); refresh();
     } catch (e) { setError((e as Error).message); setPending(undefined); refresh(); }
     finally { setBusy(false); }
@@ -27,6 +27,6 @@ export function SupervisorAssignments({ catalog, refresh }: { catalog: Catalog; 
       <label>Reason for assignment change<textarea name="reason" required maxLength={2000} rows={2} disabled={busy} /></label>
       <button className="secondary-button" disabled={busy}>Save {groupLabels[slot.studentGroup]} assignment</button>
     </form>)}</div>
-    {pending && <ConfirmDialog title="Change Supervisor assignment?" description="All unresolved cases for this processing group will be transferred or left awaiting assignment. The former Supervisor loses access. The reason and history will be recorded." busy={busy} onConfirm={save} onClose={() => setPending(undefined)} />}
+    {pending && <ConfirmDialog title="Change Supervisor assignment?" description="Before granting access, verify this Staff member's real institutional identity out of band. Confirming acknowledges that check. All unresolved cases for this processing group will be transferred or left awaiting assignment. The former Supervisor loses access. The reason and history will be recorded." busy={busy} onConfirm={save} onClose={() => setPending(undefined)} />}
   </>;
 }

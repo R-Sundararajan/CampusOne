@@ -1,5 +1,7 @@
 import type { PrismaClient } from "../../generated/prisma/client.js";
 import type { Role } from "../../generated/prisma/enums.js";
+import type { InstitutionalAuthMode } from "../../config.js";
+import { accountEligibilityWhere } from "./account-policy.js";
 
 export type PublicUser = {
   id: string;
@@ -25,10 +27,10 @@ const publicSelection = {
 export function authRepository(
   db: PrismaClient,
   allowDemo = false,
+  mode: InstitutionalAuthMode = "email-verification",
 ): AuthRepository {
   const allowed = {
-    active: true,
-    emailVerifiedAt: { not: null },
+    ...accountEligibilityWhere(mode),
     roles: { isEmpty: false },
     ...(allowDemo ? {} : { isDemo: false, email: { endsWith: "@ssn.edu.in" } }),
   };

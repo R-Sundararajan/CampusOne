@@ -110,7 +110,7 @@ export async function authRoutes(repo: AuthRepository, config: Config) {
           .status(401)
           .json({
             error:
-              "Unable to sign in. Check your email and password, verify your email, and ensure any required approval is complete.",
+              "Unable to sign in. Check your email and password and ensure any required account verification or approval is complete.",
           });
         return;
       }

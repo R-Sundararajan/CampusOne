@@ -46,6 +46,7 @@ describe("Registration input and production mail boundaries", () => {
     ).toBe("student@ssn.edu.in");
     for (const email of [
       "s@gmail.com",
+      "s@fake-ssn.edu.in",
       "s@ssn.edu.in.attacker.com",
       "s@sub.ssn.edu.in",
       "s@ssn.edu.in@attacker.com",

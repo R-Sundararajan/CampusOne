@@ -12,6 +12,7 @@ const result = z
     ADMIN_EMAIL: institutionalEmail,
     ADMIN_NAME: z.string().trim().min(2).max(100),
     ADMIN_PASSWORD: z.string().min(12).max(128),
+    INSTITUTIONAL_AUTH_MODE: z.enum(["email-verification", "domain-only-demo"]).default("email-verification"),
   })
   .safeParse(process.env);
 if (!result.success)
@@ -31,7 +32,8 @@ try {
       passwordHash: await hashPassword(env.ADMIN_PASSWORD),
       roles: ["ADMIN"],
       department: "",
-      emailVerifiedAt: new Date(),
+      // In demo mode, trusted identity review must not be recorded as mailbox verification.
+      emailVerifiedAt: env.INSTITUTIONAL_AUTH_MODE === "domain-only-demo" ? null : new Date(),
     },
   });
   console.log(

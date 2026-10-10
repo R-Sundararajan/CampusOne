@@ -2,6 +2,8 @@ import { config as loadEnv } from "dotenv";
 loadEnv({ path: [".env", "../.env"], quiet: true });
 import { z } from "zod";
 
+export type InstitutionalAuthMode = "email-verification" | "domain-only-demo";
+
 const configSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
@@ -14,6 +16,7 @@ const configSchema = z.object({
     .startsWith("postgresql://")
     .or(z.string().startsWith("postgres://")),
   JWT_SECRET: z.string().min(32),
+  INSTITUTIONAL_AUTH_MODE: z.enum(["email-verification", "domain-only-demo"]).default("email-verification"),
 });
 
 export type Config = {
@@ -23,6 +26,7 @@ export type Config = {
   appOrigin: string;
   databaseUrl: string;
   jwtSecret: string;
+  institutionalAuthMode?: InstitutionalAuthMode;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -65,5 +69,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     appOrigin: value.APP_ORIGIN,
     databaseUrl: value.DATABASE_URL,
     jwtSecret: value.JWT_SECRET,
+    institutionalAuthMode: value.INSTITUTIONAL_AUTH_MODE,
   };
 }

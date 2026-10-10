@@ -116,7 +116,7 @@ export function Dashboard({ user, route }: { user: User; route: string }) {
           <div>
             <h2>Account approvals</h2>
             <p>
-              Review verified Staff and Club Head requests and assign their
+              Verify Staff and Club Head identities out of band and assign their
               access.
             </p>
           </div>

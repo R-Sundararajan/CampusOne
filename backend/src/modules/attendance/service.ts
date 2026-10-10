@@ -9,6 +9,8 @@ import type {
   ReportFilter,
 } from "./validation.js";
 import type { z } from "zod";
+import type { InstitutionalAuthMode } from "../../config.js";
+import { accountEligible, accountEligibilityWhere } from "../auth/account-policy.js";
 import type {
   classSchema,
   assignmentSchema,
@@ -69,13 +71,13 @@ export function csv(rows: unknown[][]) {
   );
 }
 
-export function attendanceService(db: PrismaClient) {
+export function attendanceService(db: PrismaClient, mode: InstitutionalAuthMode = "email-verification", allowDemo = true) {
   async function current(tx: Db, user: PublicUser, role: "ADMIN" | "STAFF") {
     const u = await tx.user.findUnique({
       where: { id: user.id },
-      select: { roles: true, active: true, emailVerifiedAt: true },
+      select: { roles: true, active: true, emailVerifiedAt: true, email: true, isDemo: true },
     });
-    if (!u?.active || !u.emailVerifiedAt || !u.roles.includes(role)) deny();
+    if (!accountEligible(u, mode, allowDemo) || !u?.roles.includes(role)) deny();
   }
   async function classAccess(tx: Db, user: PublicUser, classId: string) {
     const group = await tx.classGroup.findUnique({
@@ -391,8 +393,7 @@ export function attendanceService(db: PrismaClient) {
       await current(db, user, "ADMIN");
       return db.user.findMany({
         where: {
-          active: true,
-          emailVerifiedAt: { not: null },
+          ...accountEligibilityWhere(mode, allowDemo),
           roles: { has: "STAFF" },
         },
         select: { id: true, name: true, email: true },
@@ -468,12 +469,12 @@ export function attendanceService(db: PrismaClient) {
           where: { id: input.staffId },
         });
         check(
-          staff?.active &&
-            staff.emailVerifiedAt &&
-            staff.roles.includes("STAFF"),
-          "Choose a verified, active Staff account.",
+          accountEligible(staff, mode, allowDemo) && staff?.roles.includes("STAFF"),
+          "Choose an eligible, active Staff account.",
         );
         const where = { staffId: input.staffId, offeringId: input.offeringId };
+        if (input.assigned && mode === "domain-only-demo")
+          check(input.identityConfirmed === true, "Confirm the Staff identity out of band before granting a teaching assignment.");
         if (input.assigned)
           await tx.teachingAssignment.upsert({
             where: { staffId_offeringId: where },
@@ -631,20 +632,20 @@ export function attendanceService(db: PrismaClient) {
     async link(user: PublicUser, input: z.infer<typeof linkSchema>) {
       return write(async (tx) => {
         await current(tx, user, "ADMIN");
+        if (mode === "domain-only-demo")
+          check(input.identityConfirmed === true, "Verify the person's institutional identity and register number out of band before linking.");
         const candidate = await tx.user.findUnique({
           where: { email: input.email },
           select: { id: true },
         });
-        check(candidate, "Select an active, verified Student account.");
+        check(candidate, "Select an eligible, active Student account.");
         await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${candidate.id} FOR UPDATE`;
         const account = await tx.user.findUnique({
           where: { id: candidate.id },
         });
         check(
-          account?.active &&
-            account.emailVerifiedAt &&
-            account.roles.includes("STUDENT"),
-          "Select an active, verified Student account.",
+          accountEligible(account, mode, allowDemo) && account?.roles.includes("STUDENT"),
+          "Select an eligible, active Student account.",
         );
         await tx.$queryRaw`SELECT "id" FROM "StudentIdentity" WHERE "registerNumber" = ${input.registerNumber} FOR UPDATE`;
         const identity = await tx.studentIdentity.findUnique({
@@ -732,6 +733,7 @@ export function attendanceService(db: PrismaClient) {
             registerNumber: input.registerNumber,
             reason: input.reason,
             reconciledIdentityId: previous?.id ?? null,
+            identityConfirmed: input.identityConfirmed === true,
           },
         );
       });

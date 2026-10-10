@@ -184,6 +184,7 @@ export function AcademicSetup({
               staffId: f.staffId,
               offeringId: f.offeringId,
               assigned: f.action === "assign",
+              identityConfirmed: f.identityConfirmed === "on",
             },
             "Teaching assignment updated.",
           );
@@ -193,7 +194,7 @@ export function AcademicSetup({
           <legend>Faculty teaching assignment</legend>
           <div className="compact-grid">
             <label>
-              Verified Staff account
+              Approved Staff account
               <select name="staffId" required defaultValue="">
                 <option value="" disabled>
                   Select faculty
@@ -226,6 +227,7 @@ export function AcademicSetup({
               </select>
             </label>
           </div>
+          <label className="checkbox-label"><input type="checkbox" name="identityConfirmed" />I verified the Staff identity out of band before granting access.</label>
           <button className="secondary-button">Update assignment</button>
         </fieldset>
       </form>
@@ -263,8 +265,9 @@ export function AcademicSetup({
               email: f.email,
               reason: f.reason,
               confirmed: f.confirmed === "on",
+              identityConfirmed: f.confirmed === "on",
             },
-            "Student identity linked to the verified account.",
+            "Student identity linked after out-of-band identity review.",
           );
         }}
       >
@@ -286,7 +289,7 @@ export function AcademicSetup({
               />
             </label>
             <label>
-              Verified Student account email
+              Student account email
               <input name="email" type="email" required />
             </label>
           </div>

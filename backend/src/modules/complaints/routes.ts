@@ -13,7 +13,7 @@ export function complaintsRoutes(service: ComplaintsService, repo: AuthRepositor
   r.get("/statistics", async (req, res) => res.json(await service.statistics(req.user!)));
   r.post("/supervisors/:group", async (req, res) => {
     const group = parse(z.enum(groups), req.params.group), b = parse(assignmentSchema, req.body);
-    res.json(await service.configure(req.user!, group, b.version, b.userId, b.reason));
+    res.json(await service.configure(req.user!, group, b.version, b.userId, b.reason, b.identityConfirmed));
   });
   r.get("/", async (req, res) => res.json(await service.list(req.user!, parse(listSchema, req.query))));
   r.post("/", async (req, res) => res.status(201).json(await service.create(req.user!, parse(submissionSchema, req.body))));

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Brand } from "../components/Brand";
 import { Link } from "../components/Link";
 import { api, type User } from "../services/api";
@@ -21,6 +21,13 @@ export function AuthPage({
   const [email, setEmail] = useState("");
   const [accountType, setAccountType] = useState("STUDENT");
   const [verified, setVerified] = useState(false);
+  const [mode, setMode] = useState<string>();
+  const demo = mode === "domain-only-demo";
+  useEffect(() => {
+    api<{ institutionalAuthMode: string }>("/auth/policy")
+      .then((policy) => setMode(policy.institutionalAuthMode))
+      .catch((e) => setError(e.message));
+  }, []);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -31,10 +38,8 @@ export function AuthPage({
       if (register) {
         if (fields.password !== fields.confirmPassword)
           throw new Error("Passwords do not match.");
-        await api("/auth/register", fields);
-        setMessage(
-          "Check your institutional inbox. If this address can be registered, a verification link will arrive shortly. The link expires in 30 minutes.",
-        );
+        const result = await api<{ message: string }>("/auth/register", fields);
+        setMessage(result.message);
       } else {
         const result = await api<{ user: User }>("/auth/login", fields);
         onLogin(result.user);
@@ -198,7 +203,11 @@ export function AuthPage({
                       </option>
                     </select>
                     <small>
-                      {accountType === "STUDENT"
+                      {demo
+                        ? accountType === "STUDENT"
+                          ? "Student access is ready after valid registration."
+                          : "An Admin must verify your identity out of band and approve access and assignments."
+                        : accountType === "STUDENT"
                         ? "Student access is activated after email verification."
                         : "Verify your email first. An Admin must approve your access and assignments."}
                     </small>
@@ -249,7 +258,7 @@ export function AuthPage({
                 </p>
               </form>
             )}
-            {!verify && (
+            {!verify && mode === "email-verification" && (
               <details className="verification-help">
                 <summary>Waiting for a verification email?</summary>
                 <p>
@@ -283,8 +292,7 @@ export function AuthPage({
               <p>Raise concerns and follow their progress.</p>
             </div>
             <p className="aside-note">
-              These services are being introduced in stages. Your account is the
-              first step.
+              Use one account for your campus services. Staff and Club Head access requires Admin approval.
             </p>
             <div className="campus-lines" aria-hidden="true">
               <svg viewBox="0 0 300 80">

@@ -37,8 +37,11 @@ export function registrationRoutes(
   });
   const accepted = {
     message:
-      "If this address is eligible, check its inbox for a verification link.",
+      config.institutionalAuthMode === "domain-only-demo"
+        ? "If this address is new and eligible, Student access is ready to sign in. Staff and Club Head requests require Admin approval. No verification email is sent."
+        : "If this address is eligible, check its inbox for a verification link.",
   };
+  router.get("/auth/policy", (_req, res) => res.json({ institutionalAuthMode: config.institutionalAuthMode ?? "email-verification" }));
   router.post("/auth/register", registrationLimit, async (req, res) => {
     const parsed = registrationSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -142,6 +145,7 @@ export function registrationRoutes(
           clubId: z.string().min(1).max(100),
           active: z.boolean(),
           reason: z.string().trim().min(3).max(500),
+          identityConfirmed: z.boolean().optional(),
         })
         .strict()
         .safeParse(req.body);

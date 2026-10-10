@@ -12,6 +12,8 @@ export function createMailer(
   config: Config,
   env: NodeJS.ProcessEnv = process.env,
 ): Mailer {
+  // Never validate SMTP or create a transport in the explicitly configured demo mode.
+  if (config.institutionalAuthMode === "domain-only-demo") return async () => {};
   const mode =
     env.MAIL_MODE ?? (config.nodeEnv === "production" ? "smtp" : "development");
   if (mode === "development") {

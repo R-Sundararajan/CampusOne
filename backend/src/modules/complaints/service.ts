@@ -4,6 +4,8 @@ import { AccountError } from "../registration/service.js";
 import { imageStorage, validateImage } from "../../services/image-storage.js";
 import { currentUser, eligibleSupervisor, requireAdmin, requireSubmitter, supervisorAccounts, type CurrentUser } from "./permissions.js";
 import { groups, categories, type Submission, type ComplaintQuery } from "./validation.js";
+import type { InstitutionalAuthMode } from "../../config.js";
+import { accountEligible } from "../auth/account-policy.js";
 
 const person = { id: true, name: true, email: true, department: true } as const;
 const selection = {
@@ -23,7 +25,7 @@ const slotSelection = {
 } as const;
 type Slot = Prisma.ComplaintSupervisorAssignmentGetPayload<{ select: typeof slotSelection }>;
 type Context = { user: CurrentUser; slots: Slot[]; activeSlots: Slot[] };
-const eligible = (s: Slot, allowDemo: boolean) => !!s.user?.active && !!s.user.emailVerifiedAt && s.user.roles.includes("STAFF") && ((s.user.email.endsWith("@ssn.edu.in") && !s.user.isDemo) || (allowDemo && s.user.isDemo));
+const eligible = (s: Slot, allowDemo: boolean, mode: InstitutionalAuthMode) => accountEligible(s.user, mode) && !!s.user?.roles.includes("STAFF") && ((s.user.email.endsWith("@ssn.edu.in") && !s.user.isDemo) || (allowDemo && s.user.isDemo));
 const isAdmin = (ctx: Context) => ctx.user.roles.includes("ADMIN");
 function assigned(c: Case, ctx: Context) {
   return ctx.activeSlots.some(s => s.studentGroup === c.supervisorGroup && s.userId === c.supervisorId);
@@ -53,7 +55,7 @@ function card(c: Case, ctx: Context) {
   };
 }
 
-export function complaintsService(db: PrismaClient, allowDemo = false) {
+export function complaintsService(db: PrismaClient, allowDemo = false, mode: InstitutionalAuthMode = "email-verification") {
   const storage = imageStorage();
   // One short-lived module lock serializes configuration and case mutations. Reads use
   // its shared counterpart so reassignment cannot interleave with authorization/bytes.
@@ -61,9 +63,9 @@ export function complaintsService(db: PrismaClient, allowDemo = false) {
     return db.$transaction(async tx => {
       if (write) await tx.$queryRaw`SELECT pg_advisory_xact_lock(731004)::text`;
       else await tx.$queryRaw`SELECT pg_advisory_xact_lock_shared(731004)::text`;
-      const u = await currentUser(tx, user);
+      const u = await currentUser(tx, user, mode);
       const slots = await tx.complaintSupervisorAssignment.findMany({ select: slotSelection, orderBy: { studentGroup: "asc" } });
-      return fn(tx, { user: u, slots, activeSlots: slots.filter(s => eligible(s, allowDemo)) });
+      return fn(tx, { user: u, slots, activeSlots: slots.filter(s => eligible(s, allowDemo, mode)) });
     }, { maxWait: 10000, timeout: 15000 });
   }
   async function find(tx: Tx, id: string, lock = false) {
@@ -110,8 +112,8 @@ export function complaintsService(db: PrismaClient, allowDemo = false) {
         provisionalSelectionAllowed: ctx.user.roles.includes("STUDENT") && !ctx.user.roles.includes("STAFF"),
         routingExplanation: "Academic terms and rosters do not record a reliable current study year. Student selections are provisional; Admin must confirm routing. Staff complaints use manual routing.",
         ...(isAdmin(ctx) ? {
-          assignments: ctx.slots.map(s => ({ studentGroup: s.studentGroup, userId: s.userId, version: s.version, updatedAt: s.updatedAt, eligible: eligible(s, allowDemo), user: s.user ? { id: s.user.id, name: s.user.name, email: s.user.email } : null })),
-          candidates: await tx.user.findMany({ where: supervisorAccounts(allowDemo), select: person, orderBy: { name: "asc" } }),
+          assignments: ctx.slots.map(s => ({ studentGroup: s.studentGroup, userId: s.userId, version: s.version, updatedAt: s.updatedAt, eligible: eligible(s, allowDemo, mode), user: s.user ? { id: s.user.id, name: s.user.name, email: s.user.email } : null })),
+          candidates: await tx.user.findMany({ where: supervisorAccounts(allowDemo, mode), select: person, orderBy: { name: "asc" } }),
         } : {}),
       }));
     },
@@ -184,20 +186,22 @@ export function complaintsService(db: PrismaClient, allowDemo = false) {
         return detail(tx, updated, ctx);
       });
     },
-    configure(user: PublicUser, studentGroup: typeof groups[number], version: number, userId: string | null, reason: string) {
+    configure(user: PublicUser, studentGroup: typeof groups[number], version: number, userId: string | null, reason: string, identityConfirmed?: boolean) {
       return transaction(user, true, async (tx, ctx) => {
         requireAdmin(ctx.user);
         const slot = ctx.slots.find(s => s.studentGroup === studentGroup);
         if (!slot || slot.version !== version) throw new AccountError(409, "This assignment changed. Reload before saving.");
         if (slot.userId === userId) throw new AccountError(400, "Choose a different Supervisor or revoke the assignment.");
-        if (userId) await eligibleSupervisor(tx, userId, allowDemo);
+        if (userId && mode === "domain-only-demo" && identityConfirmed !== true)
+          throw new AccountError(400, "Verify the Staff identity out of band and confirm before designating a Supervisor.");
+        if (userId) await eligibleSupervisor(tx, userId, allowDemo, mode);
         await tx.complaintSupervisorAssignment.update({ where: { studentGroup }, data: { userId, assignedById: user.id, version: { increment: 1 } } });
         const cases = await tx.complaint.findMany({ where: { status: "ACCEPTED", supervisorGroup: studentGroup }, select: { id: true, supervisorId: true } });
         for (const c of cases) {
           await tx.complaint.update({ where: { id: c.id }, data: { supervisorId: userId, assignedAt: userId ? new Date() : null, version: { increment: 1 } } });
           await audit(tx, user.id, c.id, c.supervisorId ? "REASSIGNED" : "ASSIGNED", { previousSupervisorId: c.supervisorId, supervisorId: userId, supervisorGroup: studentGroup, reason });
         }
-        await tx.auditLog.create({ data: { actorId: user.id, entityType: "ComplaintSupervisorAssignment", entityId: studentGroup, action: "COMPLAINT_SUPERVISOR_CHANGED", changes: { previousUserId: slot.userId, userId, reason, transferredCases: cases.length } } });
+        await tx.auditLog.create({ data: { actorId: user.id, entityType: "ComplaintSupervisorAssignment", entityId: studentGroup, action: "COMPLAINT_SUPERVISOR_CHANGED", changes: { previousUserId: slot.userId, userId, reason, identityConfirmed: identityConfirmed === true, transferredCases: cases.length } } });
         return { studentGroup, userId, transferredCases: cases.length };
       });
     },

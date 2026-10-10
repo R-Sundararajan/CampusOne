@@ -29,6 +29,7 @@ export const decisionSchema = z.discriminatedUnion("decision", [
       decision: z.literal("APPROVED"),
       clubId: z.string().min(1).max(100).optional(),
       offeringIds: z.array(z.string().min(1).max(100)).max(30).default([]),
+      identityConfirmed: z.boolean().optional(),
     })
     .strict(),
   z

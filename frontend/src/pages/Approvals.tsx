@@ -34,6 +34,7 @@ export function Approvals() {
         ? { decision, reason: form.get("reason") }
         : {
             decision,
+            identityConfirmed: form.get("identityConfirmed") === "on",
             ...(form.has("clubId")
               ? { clubId: form.get("clubId") }
               : { offeringIds: form.getAll("offeringIds") }),
@@ -66,8 +67,7 @@ export function Approvals() {
         <p className="eyebrow">ADMINISTRATION</p>
         <h1>Access requests</h1>
         <p>
-          Review verified accounts before granting Staff or Club Head
-          permissions.
+          Verify each person's real institutional identity out of band before granting Staff or Club Head permissions. An email domain does not prove identity.
         </p>
       </div>
       {error && (
@@ -86,8 +86,7 @@ export function Approvals() {
         <section className="panel empty-state">
           <h2>No pending requests</h2>
           <p>
-            Requests appear here after the applicant verifies their
-            institutional email.
+            Requests appear here when the applicant meets the configured registration policy.
           </p>
         </section>
       ) : (
@@ -144,6 +143,10 @@ export function Approvals() {
                 <label>
                   Reason (required when rejecting)
                   <textarea name="reason" maxLength={500} rows={2} />
+                </label>
+                <label className="checkbox-label">
+                  <input type="checkbox" name="identityConfirmed" />
+                  I verified this person's institutional identity out of band (required for demo-mode approval).
                 </label>
                 <button className="primary-button" disabled={busy === r.id}>
                   {busy === r.id ? "Saving…" : "Save decision"}

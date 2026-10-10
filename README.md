@@ -2,11 +2,13 @@
 
 One campus application for attendance, club events, and campus complaints. React/Vite and Express run together in one Docker container; PostgreSQL stores structured data. Railway is the only planned cloud provider.
 
-Phase 4 details and verification: [Complaint Management and Supervisor workflow](docs/phase4-complaints.md).
+Release integration, test evidence and deployment runbook: [Phase 5](docs/phase5-integration-deployment.md). Module details: [Attendance](docs/phase2-attendance.md), [Events](docs/phase3-events.md), [Complaints](docs/phase4-complaints.md).
 
 ## Current milestone
 
-Phases 2 and 3 provide attendance/rosters and club events/registration. Phase 4 now adds private Student/Staff complaints, Admin verification, five configurable Supervisor group assignments, coordination, resolution and terminal feedback. Institutional registration, authentication, privilege approval and existing modules are preserved. Local verification passes; cloud deployment remains disabled.
+Phases 1–4 are integrated on `integration/campusone-release`, based on the verified Complaints tip `08e01f4`. Phase 5 adds explicit domain-only demo registration and guarded Railway CI/CD. Local verification: 176 application tests plus 4 release guard tests, typechecks, builds, Docker production startup, migrations and backup restoration pass. Cloud deployment remains disabled pending owner authorization.
+
+`INSTITUTIONAL_AUTH_MODE=domain-only-demo` accepts the exact normalized `@ssn.edu.in` domain and sends no verification email. Students can sign in immediately; Staff and Club Heads require Admin approval. **This is insecure for genuine institutional identity assurance:** anyone can claim an unused institutional address. Admins must verify identity out of band before granting privileges or linking student records. `emailVerifiedAt` stays null for demo registration and bootstrap.
 
 The academic demo uses synthetic data. The revised SRS target is 50–100 normal active users and 300 peak; these targets and the 500 ms read / 2 s write targets have not been established by load tests.
 
@@ -72,7 +74,7 @@ Remove-Item Env:DATABASE_URL
 Remove-Item Env:TEST_DATABASE_URL
 ```
 
-CI uses its own PostgreSQL service, applies migrations, seeds twice, runs all tests/typechecks/builds, and builds the Docker image. Manual end-to-end verification belongs to each module slice. Large test frameworks and scanners are optional.
+CI uses a fresh PostgreSQL service, applies all seven migrations, verifies a representative Phase 4 upgrade twice, seeds twice, runs all application and release guard tests/typechecks/builds, builds Docker and checks production startup without SMTP plus readiness/frontend assets. Keep automated suites separate from populated browser QA databases: several module tests deliberately exercise global counts and all five Supervisor slots.
 
 Dependency overrides select patched `deepmerge-ts` and `mysql2` versions used by the Prisma CLI. Client generation and database migrations have been exercised with these versions; keep those checks when updating dependencies.
 
@@ -99,19 +101,20 @@ Provision an application service and PostgreSQL through Railway's dashboard, the
 | `APP_ORIGIN` | Exact Railway HTTPS origin, no trailing slash |
 | `DATABASE_URL` | Reference PostgreSQL's private connection URL |
 | `JWT_SECRET` | Random secret, at least 32 characters |
-| `MAIL_MODE` | `smtp` (development previews are rejected in production) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Approved SMTP credentials and sender |
+| `INSTITUTIONAL_AUTH_MODE` | `domain-only-demo` for the owner-approved academic demonstration |
+| `MAIL_MODE`, `SMTP_*` | Not required or used in domain-only-demo; only legacy email-verification needs production SMTP |
 | `STORAGE_MODE` | `database` for the approved fallback; bucket integration is a later slice |
 
 Railway supplies `PORT`. `railway.toml` selects the Dockerfile, runs `npm run db:migrate` before release, and checks readiness. Migrations must be backward-compatible; failure blocks deployment. Demo seeding is forbidden in production. Use the trusted Admin bootstrap described below; migrations never create public demo accounts.
 
 Configure these GitHub repository values only after deployment authorization:
 
-- Secret: environment-scoped `RAILWAY_TOKEN`.
+- GitHub environment: `production`; configure owner review/protection rules.
+- Secret: environment-scoped `RAILWAY_TOKEN` (Railway project/environment token).
 - Variables: `RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_PUBLIC_URL` (HTTPS origin without trailing slash).
-- Variable `ENABLE_RAILWAY_DEPLOY=true` enables automatic deployment of successful pushes to `main`. Absent/false means checks only. Pull requests never deploy and never receive the deployment token.
+- Repository variable `ENABLE_RAILWAY_DEPLOY=true` enables deployment of successful pushes to `main`. Keep it absent/false until the owner authorizes release. Pull requests never deploy and never receive the deployment token.
 
-The single workflow serializes deployment jobs and waits for the CLI deployment result before checking readiness and the frontend. Railway rebuilds the checked source commit with the same Dockerfile/lockfile; this does not promote the identical CI image. Do not use `--detach` or build-only success as release verification.
+The single workflow serializes deployment jobs. Railway CLI 5.64.2 uploads the checked source to the exact project/service/environment; the script captures its deployment ID and polls that exact deployment to SUCCESS before checking readiness, home and built JS/CSS assets. A successful build or an older healthy deployment cannot mask a failed migration/startup. Railway rebuilds the checked source with the Dockerfile/lockfile rather than promoting the identical CI image.
 
 ## Images, credits, and recovery
 
@@ -119,7 +122,7 @@ Preferred image storage is a private Railway bucket, subject to actual account e
 
 Railway's trial and bucket-billing documents disagree about limited-trial bucket availability; inspect the actual account before relying on it. Both database and image usage consume storage/credits. No paid upgrade is permitted; continuous hosted availability is not guaranteed. Local Docker remains usable if Railway credits expire.
 
-Before database changes, preserve a backup and practice restoration into a separate local database. Use Railway rollback or redeploy a known-good commit for application recovery; application rollback does not undo migrations. The final integration milestone will verify backup/rollback procedures rather than claim them complete now.
+Before database changes, preserve a backup and practice restoration into a separate database. Phase 5 rehearsed local PostgreSQL backup/restore and compared all 23 tables. Use Railway rollback or redeploy a compatible known-good commit for application recovery; application rollback does not undo migrations. Cloud rollback remains unexecuted; see the Phase 5 runbook.
 
 Local `decisions.md` and `workflow.md` are intentionally ignored. Track progress there without committing them.
 
@@ -134,18 +137,18 @@ Compact institutional forms and top navigation take layout cues from the supplie
 ## Institutional registration and approval
 
 - Public registration accepts only normalized, exact `@ssn.edu.in` addresses and Student, Staff or Club Head requests. Unknown fields (including roles, active state and verification flags) are rejected. Admin is never a public option.
-- Verification proves inbox control. Tokens contain 32 random bytes; only SHA-256 hashes are stored, expire after 30 minutes, and can be consumed once. Links use a URL fragment and a confirmation POST, so ordinary GET link scanners do not activate accounts.
-- Verified Students receive Student access. New Staff/Club Head accounts remain unable to sign in until approval. Club Head approval requires a real club; Staff approval may include existing class/subject offerings. A Staff account without assignments cannot manage any class. No extra Student role is silently granted to a new privileged applicant.
-- Verified users can request additional Staff/Club Head roles from Profile. Approval preserves existing roles and writes assignments and an audit record atomically. Only Admins can review requests; self-approval is refused. Rejection requires a reason.
+- In explicit `domain-only-demo`, new Students receive Student access immediately. Email ownership is not verified and `emailVerifiedAt` stays null. With the default legacy `email-verification` mode, Student activation still requires a verification token.
+- Staff/Club Head accounts remain unable to sign in until approval. Club Head approval requires a real club; Staff approval may include selected existing offerings. A Staff account without assignments cannot manage a class. No extra Student role is silently granted to a privileged applicant.
+- Eligible active users can request additional Staff/Club Head roles from Profile. Approval preserves existing roles and writes assignments/audit atomically. Only Admins can review requests; self-approval is refused. Rejection requires a reason. Demo-mode privileged approvals, club/teaching/Supervisor grants and student linkage require explicit out-of-band identity confirmation, recorded in the audit trail.
 - Registrations and resends return the same generic response for existing/unknown eligible addresses. Duplicate signup never overwrites a password or request. Per-IP limits cover login, signup/resend, role requests and verification; resends also have a 60-second account cooldown. Limits are process-local.
-- Login requires active status, verified email and at least one approved role. Production also rejects all synthetic demo accounts. Login errors deliberately do not reveal which eligibility condition failed.
+- Login requires active status, eligibility under the configured mode and at least one approved role. Production rejects `isDemo` accounts and noninstitutional domains; these accounts are also excluded from privileged assignment candidates/grants. Login errors do not reveal which eligibility condition failed.
 - Existing local demo users keep their credentials. New databases need an explicit development seed; changing DEMO_PASSWORD does not reset existing users.
 
-### Local email verification
+### Optional legacy email verification
 
-With `NODE_ENV=development`, `MAIL_MODE=development` and a loopback APP_ORIGIN, verification emails are written to the ignored root `.local-mail/` directory. In local Compose it is bind-mounted at `/app/.local-mail`. Open the latest file for the test address, follow its link and select Confirm email address. This local preview is not evidence of owning a real inbox. No messages are sent to real SSN accounts in this mode. Never serve or commit this directory.
+With `INSTITUTIONAL_AUTH_MODE=email-verification`, `NODE_ENV=development`, `MAIL_MODE=development` and a loopback APP_ORIGIN, verification emails are written to ignored `.local-mail/`. Tokens contain 32 random bytes, are stored only as SHA-256 hashes, expire after 30 minutes and work once. This preview is not proof of inbox ownership. Never serve or commit the directory. Domain-only-demo skips mail creation/delivery and SMTP startup validation entirely.
 
-Production refuses the development mail mode and requires SMTP configuration. `SMTP_PORT=465` uses implicit TLS; other configured ports require STARTTLS and normal certificate validation. No paid service is mandatory, but a permitted working SMTP account and network access must be supplied before deployment. Actual delivery and Railway outbound SMTP eligibility remain unverified. A failed send leaves the account unverified, records a generic server error, and permits a resend.
+Only production `email-verification` refuses development mail and requires SMTP. Port 465 uses implicit TLS; other ports require STARTTLS with certificate validation. Live SMTP delivery remains unverified and is outside Phase 5. Existing pending Student registrations retain their empty roles rather than receiving an implicit data migration; retained verification links remain usable, or complete them under the legacy mode. Newly registered demo Students have immediate access.
 
 ### Trusted Admin bootstrap
 
@@ -157,7 +160,7 @@ npm run admin:bootstrap -w backend
 docker compose run --rm -e ADMIN_NAME -e ADMIN_EMAIL -e ADMIN_PASSWORD app npm run admin:bootstrap:built -w backend
 ```
 
-This command creates an Admin only for a previously unused email; it refuses to modify an existing public account or reset its password. Remove bootstrap credentials afterward. Account recovery and invitations remain later work. Admin can grant/revoke assignments for approved Club Heads through the existing Approvals page.
+This command creates an Admin only for a previously unused email; it refuses to modify a public account or reset its password. In demo mode the ownership timestamp remains null. Legacy mode additionally requires the trusted operator to verify mailbox ownership. Remove bootstrap credentials afterward. Account recovery/invitations remain later work.
 
 ### Phase 1.5 database change
 
@@ -165,7 +168,7 @@ This command creates an Admin only for a previously unused email; it refuses to 
 
 Focused PostgreSQL tests require `TEST_DATABASE_URL` pointing to an isolated test database. Without it, database tests are reported as skipped, not passed. SMTP delivery is tested through an injected local adapter; this is not a claim of real email delivery.
 
-## Phase 1.5 completion — 2026-10-09
+## Historical Phase 1.5 completion — 2026-10-09
 
 ```text
 CampusOne/
@@ -206,7 +209,7 @@ The two synthetic browser-verification accounts are marked `isDemo` and their cr
 
 Open **Attendance** after signing in. Admin uses **Academic setup** to create terms/classes/subjects and grant or revoke teaching assignments. Admin and assigned Staff use **Class rosters** to preview register-number imports. Set a numeric prefix and a suffix width (1–6, default 3); enter suffixes such as `62-132, 304, 305`. Preview shows full string register numbers, duplicates, additions, existing members and unmatched accounts. Imports are additive; omitted students stay enrolled, inactive students stay inactive, and historical attendance is retained. A class supports at most 1,000 active students.
 
-Unmatched numbers remain independent student identities. Admin can link them to active, verified Student accounts after checking institutional records, entering evidence and confirming the link. Public registration and Student requests cannot claim register numbers. Migrated accounts with no register number need this reconciliation before faculty can mark their roster.
+Unmatched numbers remain independent student identities. Admin can link them to eligible active Student accounts after checking institutional identity/register numbers out of band, entering evidence and confirming the link. Public registration and Student requests cannot claim register numbers. Migrated accounts with no register number need this reconciliation before faculty can mark their roster.
 
 Assigned faculty select a class, subject, date and hour, then load the official roster or existing session. Enter present suffixes (default) or absent suffixes, calculate the preview, toggle individual statuses, and confirm the save. Empty input and unknown numbers block saving. Mark-all actions require an additional explicit confirmation. Existing sessions require a correction reason and a current version; only changed statuses create audit entries. Concurrent submissions, stale previews and partial saves are protected by transactions, class locks and database constraints.
 
@@ -245,7 +248,7 @@ Open **Complaints** after signing in. Student and approved Staff accounts can su
 
 Admin uses **Admin Review Queue** for persisted overview counts, status/group/Supervisor/date/category/location filters and verification. Acceptance requires explicit routing confirmation and assigns the eligible configured Supervisor in the same transaction. Rejection requires a public reason. Accepted cases without eligible configuration remain visibly awaiting assignment.
 
-**Supervisor Assignments** manages exactly five group slots: UG I–IV and PG. Admin selects active, verified, approved institutional Staff accounts. No new authentication role or public Supervisor signup is introduced. One account may hold multiple group slots; each group has at most one current designation. Replacement/revocation requires a reason and transactionally updates unresolved cases and audit history. Closed cases retain the historical assignee, but a former Supervisor loses access when their corresponding designation changes. Production excludes synthetic local accounts.
+**Supervisor Assignments** manages exactly five group slots: UG I–IV and PG. Admin selects eligible active approved institutional Staff accounts after out-of-band identity review. No Supervisor authentication role or public signup exists. One account may hold multiple slots; each group has at most one designation. Replacement/revocation requires a reason and atomically updates unresolved cases/audits. Closed cases retain the historical assignee, but former Supervisors lose access when their designation changes. Production excludes synthetic local accounts.
 
 Attendance terms/class rosters lack an explicit reliable current study-year/current-term marker. Student year selections are provisional until Admin confirmation. Staff complaints always require manual Admin routing; users holding both Staff and Student privileges use the Staff/manual path. Register-number prefixes and admission years are never used to guess the current year.
 

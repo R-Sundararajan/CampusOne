@@ -3,6 +3,9 @@ import type { PrismaClient, Prisma } from "../../generated/prisma/client.js";
 import { hashPassword } from "../auth/routes.js";
 import type { Mailer } from "../../services/mail.js";
 import type { Decision, Registration, RequestedRole } from "./validation.js";
+import { registrationSchema } from "./validation.js";
+import type { InstitutionalAuthMode } from "../../config.js";
+import { accountEligible, accountEligibilityWhere } from "../auth/account-policy.js";
 
 export class AccountError extends Error {
   constructor(
@@ -28,8 +31,11 @@ export function registrationService(
   db: PrismaClient,
   mailer: Mailer,
   origin: string,
+  mode: InstitutionalAuthMode = "email-verification",
+  allowDemo = true,
 ) {
   async function sendVerification(userId: string) {
+    if (mode === "domain-only-demo") return;
     const token = randomBytes(32).toString("hex");
     const user = await db.$transaction(async (tx) => {
       await lockUser(tx, userId);
@@ -74,6 +80,7 @@ export function registrationService(
 
   return {
     async register(input: Registration) {
+      input = registrationSchema.parse(input);
       // Hash even for duplicates; never overwrite an existing account or reveal its status.
       const passwordHash = await hashPassword(input.password);
       let userId: string;
@@ -84,7 +91,7 @@ export function registrationService(
             email: input.email,
             passwordHash,
             department: "",
-            roles: [],
+            roles: mode === "domain-only-demo" && input.accountType === "STUDENT" ? ["STUDENT"] : [],
             requestedAccountType: input.accountType,
             ...(input.accountType === "STUDENT"
               ? {}
@@ -139,7 +146,7 @@ export function registrationService(
           where: { id: user.id },
           data: {
             emailVerifiedAt: new Date(),
-            ...(student ? { roles: ["STUDENT"] } : {}),
+            ...(student ? { roles: [...new Set([...user.roles, "STUDENT" as const])] } : {}),
           },
         });
         return { status: student ? "ready" : "pending_approval" };
@@ -156,8 +163,8 @@ export function registrationService(
       await db.$transaction(async (tx) => {
         await lockUser(tx, userId);
         const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-        if (!user.active || !user.emailVerifiedAt)
-          throw new AccountError(403, "Verified account required");
+        if (!accountEligible(user, mode, allowDemo) || !user.roles.length)
+          throw new AccountError(403, "Eligible active account required");
         if (user.roles.includes(role))
           throw new AccountError(409, "You already have this role");
         const existing = await tx.roleRequest.findUnique({
@@ -186,7 +193,7 @@ export function registrationService(
         db.roleRequest.findMany({
           where: {
             status: "PENDING",
-            user: { active: true, emailVerifiedAt: { not: null } },
+            user: accountEligibilityWhere(mode, allowDemo),
           },
           select: {
             ...requestSelection,
@@ -225,8 +232,7 @@ export function registrationService(
         }),
         db.user.findMany({
           where: {
-            active: true,
-            emailVerifiedAt: { not: null },
+            ...accountEligibilityWhere(mode, allowDemo),
             roles: { has: "CLUB_HEAD" },
           },
           select: { id: true, name: true, email: true },
@@ -250,26 +256,29 @@ export function registrationService(
         clubId: string;
         active: boolean;
         reason: string;
+        identityConfirmed?: boolean;
       },
     ) {
       await db.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "Club" WHERE "id" = ${input.clubId} FOR UPDATE`;
         const actor = await tx.user.findUnique({ where: { id: actorId } });
         if (
-          !actor?.active ||
-          !actor.emailVerifiedAt ||
+          !accountEligible(actor, mode, allowDemo) ||
+          !actor ||
           !actor.roles.includes("ADMIN")
         )
           throw new AccountError(403, "Admin access required.");
         const user = await tx.user.findUnique({ where: { id: input.userId } });
         if (
-          !user?.active ||
-          !user.emailVerifiedAt ||
+          !accountEligible(user, mode, allowDemo) ||
+          !user ||
           !user.roles.includes("CLUB_HEAD")
         )
           throw new AccountError(400, "Select an approved Club Head.");
         if (!(await tx.club.findUnique({ where: { id: input.clubId } })))
           throw new AccountError(400, "Club not found.");
+        if (input.active && mode === "domain-only-demo" && input.identityConfirmed !== true)
+          throw new AccountError(400, "Verify the person's institutional identity out of band and confirm before granting access.");
         if (input.active)
           await tx.clubAssignment.upsert({
             where: {
@@ -312,15 +321,15 @@ export function registrationService(
         });
         const actor = await tx.user.findUnique({ where: { id: actorId } });
         if (
-          !actor?.active ||
-          !actor.emailVerifiedAt ||
+          !accountEligible(actor, mode, allowDemo) ||
+          !actor ||
           !actor.roles.includes("ADMIN")
         )
           throw new AccountError(403, "Admin access required");
-        if (!user.active || !user.emailVerifiedAt)
+        if (!accountEligible(user, mode, allowDemo))
           throw new AccountError(
             409,
-            "Applicant must verify their email first",
+            "Applicant must meet the configured registration policy",
           );
         const claimed = await tx.roleRequest.updateMany({
           where: { id: requestId, status: "PENDING" },
@@ -334,6 +343,8 @@ export function registrationService(
         if (!claimed.count)
           throw new AccountError(409, "This request has already been reviewed");
         if (decision.decision === "APPROVED") {
+          if (mode === "domain-only-demo" && decision.identityConfirmed !== true)
+            throw new AccountError(400, "Verify the person's institutional identity out of band and confirm before approving privileged access.");
           if (request.role === "CLUB_HEAD") {
             if (!decision.clubId || decision.offeringIds.length)
               throw new AccountError(

@@ -22,7 +22,7 @@ export const offeringSchema = z
   .object({ classGroupId: id, code: label, name: label })
   .strict();
 export const assignmentSchema = z
-  .object({ staffId: id, offeringId: id, assigned: z.boolean() })
+  .object({ staffId: id, offeringId: id, assigned: z.boolean(), identityConfirmed: z.boolean().optional() })
   .strict();
 export const rosterSchema = z
   .object({
@@ -40,6 +40,7 @@ export const importSchema = rosterSchema.extend({
 export const linkSchema = z
   .object({
     registerNumber: z.string().regex(/^\d{2,30}$/),
+    identityConfirmed: z.boolean().optional(),
     email: z.email().trim().toLowerCase(),
     reason: z.string().trim().min(10).max(500),
     confirmed: z.literal(true),

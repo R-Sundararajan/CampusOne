@@ -42,7 +42,7 @@ export function ClubAccess() {
     setError("");
     setMessage("");
     try {
-      await api("/admin/club-access", pending);
+      await api("/admin/club-access", { ...pending, identityConfirmed: pending.active });
       await load();
       setMessage("Club access updated and audited.");
     } catch (e) {
@@ -139,7 +139,7 @@ export function ClubAccess() {
           title={pending.active ? "Grant club access?" : "Revoke club access?"}
           description={
             (pending.active
-              ? "The selected approved Club Head will be able to manage this club’s events."
+              ? "Confirm only after verifying this person's real institutional identity out of band. The selected approved Club Head will be able to manage this club’s events."
               : "The selected Club Head will immediately lose permission to manage this club’s events.") +
             " This change and its reason will be audited."
           }

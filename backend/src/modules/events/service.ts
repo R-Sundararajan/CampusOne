@@ -16,6 +16,7 @@ import {
   type EventQuery,
 } from "./validation.js";
 import { imageStorage, validateImage } from "../../services/image-storage.js";
+import type { InstitutionalAuthMode } from "../../config.js";
 const selection = {
   id: true,
   name: true,
@@ -47,7 +48,7 @@ function card(e: Selected, now: Date, registered = false) {
     group: eventGroup(e, now),
   };
 }
-export function eventsService(db: PrismaClient, clock = () => new Date()) {
+export function eventsService(db: PrismaClient, clock = () => new Date(), mode: InstitutionalAuthMode = "email-verification") {
   const storage = imageStorage();
   async function lockEvent(tx: Prisma.TransactionClient, id: string) {
     await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${id} FOR UPDATE`;
@@ -69,7 +70,7 @@ export function eventsService(db: PrismaClient, clock = () => new Date()) {
       if (!before) throw new AccountError(404, "Event not found.");
       // Same club lock is used by assignment revocation. Authorization is checked after locking.
       await tx.$queryRaw`SELECT "id" FROM "Club" WHERE "id" = ${before.clubId} FOR UPDATE`;
-      await requireClub(tx, user, before.clubId);
+      await requireClub(tx, user, before.clubId, mode);
       const e = await lockEvent(tx, id);
       if (e.version !== version)
         throw new AccountError(
@@ -129,14 +130,14 @@ export function eventsService(db: PrismaClient, clock = () => new Date()) {
           select: { id: true, name: true },
           orderBy: { name: "asc" },
         }),
-        managedClubs(db, user),
+        managedClubs(db, user, mode),
       ]);
       return { clubs, authorizedClubs };
     },
     async list(user: PublicUser, q: EventQuery) {
-      const u = await currentUser(db, user);
+      const u = await currentUser(db, user, mode);
       const now = clock();
-      const clubs = q.scope === "manage" ? await managedClubs(db, user) : [];
+      const clubs = q.scope === "manage" ? await managedClubs(db, user, mode) : [];
       if (
         q.scope === "manage" &&
         !u.roles.some((r) => ["CLUB_HEAD", "ADMIN"].includes(r))
@@ -203,14 +204,14 @@ export function eventsService(db: PrismaClient, clock = () => new Date()) {
     async detail(user: PublicUser, id: string) {
       const e = await db.event.findUnique({ where: { id }, select: selection });
       if (!e) throw new AccountError(404, "Event not found.");
-      const manage = await canManage(db, user, e.clubId);
+      const manage = await canManage(db, user, e.clubId, mode);
       const own = await db.eventRegistration.findUnique({
         where: { eventId_studentId: { eventId: id, studentId: user.id } },
         select: { id: true, createdAt: true },
       });
       if (e.status === "DRAFT" && !manage && !own)
         throw new AccountError(404, "Event not found.");
-      const u = await currentUser(db, user);
+      const u = await currentUser(db, user, mode);
       return {
         ...card(e, clock(), !!own),
         canManage: manage,
@@ -222,7 +223,7 @@ export function eventsService(db: PrismaClient, clock = () => new Date()) {
       validateDates(input);
       return db.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "Club" WHERE "id" = ${input.clubId} FOR UPDATE`;
-        await requireClub(tx, user, input.clubId);
+        await requireClub(tx, user, input.clubId, mode);
         if (!(await tx.club.findUnique({ where: { id: input.clubId } })))
           throw new AccountError(400, "Club not found.");
         const e = await tx.event.create({
@@ -301,7 +302,7 @@ export function eventsService(db: PrismaClient, clock = () => new Date()) {
       action: "publish" | "cancel" | "unpublish",
     ) {
       return lockedManage(user, id, version, async (tx, e) => {
-        const u = await currentUser(tx, user);
+        const u = await currentUser(tx, user, mode);
         if (e.status === "CANCELLED")
           throw new AccountError(409, "Cancelled events cannot change status.");
         if (action === "publish") {
@@ -345,7 +346,7 @@ export function eventsService(db: PrismaClient, clock = () => new Date()) {
     async register(user: PublicUser, id: string) {
       return db.$transaction(async (tx) => {
         const e = await lockEvent(tx, id);
-        const u = await currentUser(tx, user);
+        const u = await currentUser(tx, user, mode);
         if (!u.roles.includes("STUDENT"))
           throw new AccountError(
             403,
@@ -382,7 +383,7 @@ export function eventsService(db: PrismaClient, clock = () => new Date()) {
         select: { clubId: true },
       });
       if (!e) throw new AccountError(404, "Event not found.");
-      await requireClub(db, user, e.clubId);
+      await requireClub(db, user, e.clubId, mode);
       const [total, registrations] = await db.$transaction([
         db.eventRegistration.count({ where: { eventId: id } }),
         db.eventRegistration.findMany({
@@ -402,10 +403,10 @@ export function eventsService(db: PrismaClient, clock = () => new Date()) {
       return { total, page, pageSize, registrations };
     },
     async statistics(user: PublicUser) {
-      const u = await currentUser(db, user);
+      const u = await currentUser(db, user, mode);
       if (!u.roles.some((r) => ["ADMIN", "CLUB_HEAD"].includes(r)))
         throw new AccountError(403, "Club Head or Admin access required.");
-      const clubs = await managedClubs(db, user);
+      const clubs = await managedClubs(db, user, mode);
       if (!clubs.length)
         return {
           clubs: [],
