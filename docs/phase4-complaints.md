@@ -1,5 +1,7 @@
 # Phase 4 — Complaint Management and Supervisor Workflow
 
+> Historical implementation/verification record. Current deployment: [Render + Neon operator guide](render-neon-deployment.md). Previous platform references describe this phase only.
+
 Implemented and verified locally on 2026-10-10. Branch: `feature/complaints-module`, based on the fetched and unchanged Events head `758c8ca`. No push, main merge, documentation merge or Railway deployment occurred.
 
 ## Documentation review before implementation

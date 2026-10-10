@@ -1,4 +1,6 @@
-# Phase 5 — Integration and deployment preparation
+# Phase 5 — Historical integration and verification report
+
+> Historical evidence from the integrated release preparation. Platform references and former deployment-guard results below describe that revision; they do not instruct current setup or validate Render/Neon. Current approved architecture and owner procedure: [Render + Neon deployment](render-neon-deployment.md) and [architecture decisions](architecture.md). Superseded runtime/deployment instructions have been replaced by that guide.
 
 Verified locally on 2026-10-10. The release branch is `integration/campusone-release`, based on the actual local Complaints tip `08e01f452db028d432ffbfc477892b10d7e1d768`. Remote references were fetched; the Registration, Attendance and Events feature tips were already ancestors, so no redundant merges were needed. The teammate's `docs` branch was left separate. Main was not changed.
 
@@ -65,7 +67,7 @@ No new Phase 5 migration is necessary: this release changes application/configur
 
 Results: fresh migrations passed; representative upgrade/repeated migrations passed; idempotent development seed ran twice; built-container migration ran with no pending migrations. Existing hashes, roles, module records, assignments, images and quotas stayed intact.
 
-The production pre-deploy command remains **`npm run db:migrate`** (`prisma migrate deploy`). Never run `migrate reset`, `db push`, destructive seed or a schema reset on production.
+The then-planned production pre-deploy command was **`npm run db:migrate`** (`prisma migrate deploy`). Never run `migrate reset`, `db push`, destructive seed or a schema reset on production.
 
 Local backup rehearsal used PostgreSQL 17 `pg_dump -Fc` and `pg_restore --no-owner --exit-on-error` into a new isolated database. All 23 public tables, including migration history, matched counts and sorted complete-row digests. A second backup included two nonempty synthetic Event/Complaint PNGs (250 stored bytes); bytes and the shared budget survived restoration. Backup files, QA scripts, synthetic credentials and session snapshots are ignored local artifacts, not release source. Cloud backup/restore has not been exercised.
 
@@ -118,80 +120,3 @@ Limited localhost production timing used a single sequential client, one warmup,
 | Complaint creation | 15.5 | 18.2 | 18.2 |
 
 These observations exclude network/cloud variability and concurrency. The 50–100 normal / 300 peak users and 500 ms read / 2 s write targets remain **unproven**.
-
-## Runtime variables
-
-Keep service secrets in Railway; do not copy the database URL or JWT secret into GitHub.
-
-| Variable | Runtime requirement |
-|---|---|
-| `NODE_ENV` | `production` |
-| `APP_ORIGIN` | Exact owner-provided HTTPS public origin, without path/trailing slash; controls cookies and Origin validation |
-| `DATABASE_URL` | Private PostgreSQL reference, provided through Railway service variables |
-| `JWT_SECRET` | Random secret >=32 characters; no example/placeholder value |
-| `INSTITUTIONAL_AUTH_MODE` | Explicit `domain-only-demo` for this accepted-risk academic demonstration; otherwise default strict legacy mode |
-| `STORAGE_MODE` | `database`; other modes are not implemented and fail startup |
-| `PORT` | Supplied by Railway; validated 1–65535; defaults 3000 locally |
-| `HOST` | Optional `0.0.0.0` for container; production already defaults to that; development defaults loopback |
-| `MAIL_MODE`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Unused/not required in demo mode. Legacy production verification requires SMTP/TLS; live delivery remains untested. |
-| `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Temporary trusted bootstrap inputs; remove after successful bootstrap |
-| `DEMO_PASSWORD` | Development seed only; do not configure a production seed |
-| `VITE_ATTENDANCE_WARNING_THRESHOLD` | Optional frontend Docker build argument, default 75 (0–100); changing runtime env does not rebuild the UI |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Local Compose PostgreSQL only; sample localhost credentials are not cloud credentials |
-
-The image's CMD starts the server as `node`, serves frontend and API on one port and handles SIGTERM. `railway.toml` selects Dockerfile build, pre-deploy migration, `/api/health/ready`, 120-second health timeout and three failure restarts. Application startup itself does not reset/seed the database or require SMTP in demo mode.
-
-## GitHub CI/CD and owner settings
-
-The workflow triggers on PRs targeting main and pushes to main. The `checks` job creates PostgreSQL 17, installs/generates, applies all migrations, verifies representative upgrade, seeds twice, typechecks, runs all tests/release guards, builds both workspaces and Docker, then starts the production image without SMTP and verifies readiness/home/assets/API routing. A failed command fails checks and prevents deployment. CI uses synthetic credentials only and removes its local container.
-
-The deploy job requires successful checks **and** a push to `refs/heads/main` **and** repository variable `ENABLE_RAILWAY_DEPLOY` exactly `true`. It uses GitHub environment `production`, serialized `campusone-production` concurrency (`cancel-in-progress: false`) and a 30-minute bound. PR runs never deploy. Missing configuration fails before upload; nothing silently enables deployment.
-
-Owner configuration (not performed during Phase 5):
-
-| GitHub setting | Value/scope |
-|---|---|
-| Environment | `production`; add required reviewer/protection rules available for the repository plan |
-| Secret | `RAILWAY_TOKEN`, preferably scoped to `production`; token for the intended Railway project/environment |
-| Variables | `RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_ENVIRONMENT_ID`: exact owner-provided IDs; repository or `production` scope |
-| Variable | `RAILWAY_PUBLIC_URL`: exact HTTPS origin, without trailing slash |
-| Repository variable | `ENABLE_RAILWAY_DEPLOY`: keep absent/false until explicit owner authorization; must be repository-scoped because the job condition is evaluated before environment variables are available |
-| Branch protection | Require the `checks` job on main and review before merge; scope deployments to main where supported |
-
-CLI syntax was checked on 2026-10-10 against official [Railway CLI docs](https://docs.railway.com/cli), [up command](https://docs.railway.com/cli/up), [deployment list](https://docs.railway.com/cli/deployment), installed CLI help and pinned [5.64.2 up source](https://github.com/railwayapp/cli/blob/v5.64.2/src/commands/up.rs) / [deployment source](https://github.com/railwayapp/cli/blob/v5.64.2/src/commands/deployment.rs). No authenticated Railway account command was run.
-
-`.github/scripts/deploy-railway.mjs` uploads with `railway up --project <ID> --service <ID> --environment <ID> --detach --json`, captures that upload's deployment ID and polls `railway deployment list` with the same explicit selectors. Only that deployment's `SUCCESS` permits HTTP smoke checks; terminal failures, missing IDs or timeout fail the job. This avoids the build-only behavior of `--ci` / `CI=true` and avoids accepting an older successful deployment. Per-command timeout is three minutes; normal polling is bounded to about twenty minutes. No live upload/status polling has been executed. Railway rebuilds checked source using the Dockerfile/lockfile; the CI image is not promoted as an identical image digest.
-
-## First deployment — owner procedure
-
-- [x] Local integration/security/migration/tests/Docker/manual UI and recovery evidence recorded.
-- [x] Deployment workflow prepared with explicit gates and exact target selection.
-- [ ] Owner reviews release PR and verifies its latest GitHub `checks` result.
-- [ ] Owner confirms college account eligibility, credits/storage limits and actual service configuration; no paid upgrade is assumed.
-- [ ] Owner supplies an empty application service and PostgreSQL in the intended project/environment, with no GitHub source/autodeploy connection.
-- [ ] Owner sets Railway runtime variables above, generates the public domain and sets the exact `APP_ORIGIN`.
-- [ ] Owner verifies backups and backward-compatible migration plan for any existing data.
-- [ ] Owner configures GitHub production environment, scoped token, exact IDs/public URL and branch protections.
-- [ ] Owner explicitly authorizes the first deployment and sets repository `ENABLE_RAILWAY_DEPLOY=true` before the reviewed merge/push to main. Enabling it after a push does not retroactively deploy that push; this workflow has no manual dispatch trigger.
-- [ ] Owner merges after CI/review; main checks run again, then the protected deployment job uploads/waits/checks.
-- [ ] Owner verifies deployment logs, all seven migrations, readiness, frontend assets, HTTPS Secure cookie/Origin, privileged identity checks and persistent records after restart.
-- [ ] Owner bootstraps a trusted Admin, removes bootstrap inputs and verifies all modules using synthetic records.
-- [ ] Owner records successful cloud deployment/backup/rollback evidence and public URL; only then marks cloud tasks complete.
-
-No merge, Railway provisioning, token creation/configuration, flag enablement or cloud deployment was performed for this release preparation.
-
-## Trusted Admin bootstrap
-
-Before granting Admin, the operator must verify the intended person's real identity out of band. Use an unused exact institutional email and set `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` privately in the already authorized container environment. Run `npm run admin:bootstrap:built -w backend` inside the deployed application container using the owner's approved execution mechanism. Host development uses `npm run admin:bootstrap -w backend`.
-
-The bootstrap creates one new Admin with Argon2id password hashing; it refuses existing emails, public-account promotion and password resets. Demo mode leaves ownership timestamp null. Strict mode requires prior operator verification of mailbox ownership. Remove temporary bootstrap variables after success; do not put passwords in commits, PRs, shell transcripts or public logs. Production seeding is refused; migrations do not create demo users.
-
-## Backup, rollback and operating limits
-
-Before upgrades, create a PostgreSQL custom-format backup through an owner-approved private connection/tool; protect it as sensitive data. Record source database, migration versions, application commit and mode. Rehearse `pg_restore --no-owner --exit-on-error` into a **new separate** database, compare records/migrations/image bytes/quota and run application smoke checks there. Local rehearsal passed; owner cloud retention, remote connectivity and restore procedure still require verification.
-
-For release failure, keep `ENABLE_RAILWAY_DEPLOY` false while diagnosing. Preserve logs and the exact deployment ID. Redeploy a compatible known-good application commit or use the owner's Railway rollback controls after review. Application rollback does not undo migrations; Phase 5 leaves the schema unchanged, but the older strict-only application would block new unverified demo users. Do not fabricate verification timestamps to make a rollback work. Decide whether to preserve this mode-aware application or perform a genuine verification transition.
-
-For data recovery, pause affected writes, restore into a separate database first, validate it, and switch only through an owner-approved recovery plan. Restoring an older backup loses newer writes; reconcile them before cutover. Never reset a production database as a rollback shortcut.
-
-Operational limits: single application instance/process-local rate limits, PostgreSQL images/shared 50 MiB budget, no implemented bucket backend, no distributed session revocation, no real identity assurance in demo mode, no real SMTP evidence, no load/concurrency/SLO proof, no physical-device QA and no live Railway migration/health/rollback evidence. Credits/availability and account eligibility remain the owner's responsibility. Local Docker remains a usable demo option when cloud credits expire.

@@ -1,5 +1,7 @@
 # CampusOne Phase 2 — implementation and verification
 
+> Historical implementation/verification record. Current deployment: [Render + Neon operator guide](render-neon-deployment.md). Previous platform references describe this phase only.
+
 Implemented locally on `feature/attendance-module`, based on the verified Phase 1.5 integration commit `23d88cf`. Main remains `bb03854`. No push, merge into main, Railway deployment, Event implementation or Complaint implementation was performed.
 
 Implementation commits:

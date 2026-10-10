@@ -26,7 +26,8 @@ COPY --from=build --chown=node:node /app/backend/package.json ./backend/package.
 COPY --from=build --chown=node:node /app/backend/dist ./backend/dist
 COPY --from=build --chown=node:node /app/backend/prisma ./backend/prisma
 COPY --from=build --chown=node:node /app/backend/prisma.config.ts ./backend/prisma.config.ts
+COPY --chown=node:node backend/start.sh ./backend/start.sh
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["npm", "start"]
+CMD ["sh", "backend/start.sh"]

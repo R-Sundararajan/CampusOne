@@ -43,7 +43,7 @@ export async function createApp({
 }: AppDependencies) {
   const app = express();
   app.disable("x-powered-by");
-  // Railway terminates TLS immediately upstream. Local development uses direct requests.
+  // Render terminates TLS upstream. Preserve one trusted proxy hop; verify in deployment.
   if (config.nodeEnv === "production") app.set("trust proxy", 1);
   app.use(
     helmet({

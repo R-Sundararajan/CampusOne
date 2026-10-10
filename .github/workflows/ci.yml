@@ -43,54 +43,36 @@ jobs:
       - run: npm run test:release
       - run: npm run build
       - run: docker build -t campusone:ci .
-      - name: Production Docker startup without SMTP
+      - name: Production Docker migrations, restart and failure guards
         run: |
+          docker exec "${{ job.services.postgres.id }}" createdb -U campusone campusone_startup_test
+          export DATABASE_URL=postgresql://campusone:ci-only-password@127.0.0.1:5432/campusone_startup_test
+          export DIRECT_URL="$DATABASE_URL"
           docker run -d --name campusone-ci --network host \
             -e NODE_ENV=production -e HOST=0.0.0.0 -e PORT=3000 \
-            -e APP_ORIGIN=https://campusone-ci.example -e DATABASE_URL \
+            -e APP_ORIGIN=https://campusone-ci.example -e DATABASE_URL -e DIRECT_URL \
             -e JWT_SECRET=ci-only-synthetic-secret-at-least-32-characters \
             -e INSTITUTIONAL_AUTH_MODE=domain-only-demo -e STORAGE_MODE=database campusone:ci
           node .github/scripts/verify-http.mjs http://127.0.0.1:3000
+          test "$(docker exec "${{ job.services.postgres.id }}" psql -U campusone -d campusone_startup_test -Atc 'SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL')" = 7
+          test "$(docker exec "${{ job.services.postgres.id }}" psql -U campusone -d campusone_startup_test -Atc 'SELECT count(*) FROM "User"')" = 0
+          docker restart campusone-ci
+          node .github/scripts/verify-http.mjs http://127.0.0.1:3000
+          docker logs campusone-ci | grep 'No pending migrations to apply'
+          test "$(docker exec campusone-ci id -u)" = 1000
+          docker run -d --name campusone-migration-failure --network host \
+            -e NODE_ENV=production -e APP_ORIGIN=https://campusone-ci.example \
+            -e DATABASE_URL -e DIRECT_URL=postgresql://invalid:invalid@127.0.0.1:5432/campusone_startup_test \
+            -e JWT_SECRET=ci-only-synthetic-secret-at-least-32-characters \
+            -e INSTITUTIONAL_AUTH_MODE=domain-only-demo -e STORAGE_MODE=database campusone:ci
+          failure_code=$(timeout 60 docker wait campusone-migration-failure)
+          test "$failure_code" -ne 0
+          if docker logs campusone-migration-failure 2>&1 | grep -q 'CampusOne listening'; then exit 1; fi
       - name: Docker diagnostics
         if: failure()
-        run: docker logs campusone-ci || true
+        run: |
+          docker logs campusone-ci || true
+          docker logs campusone-migration-failure || true
       - name: Clean up local CI container
         if: always()
-        run: docker rm -f campusone-ci || true
-
-  deploy:
-    needs: checks
-    # Set the repository variable only after the owner authorizes deployment.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.ENABLE_RAILWAY_DEPLOY == 'true'
-    runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: 30
-    concurrency:
-      group: campusone-production
-      cancel-in-progress: false
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
-      RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
-      RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
-      RAILWAY_PUBLIC_URL: ${{ vars.RAILWAY_PUBLIC_URL }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - name: Verify deployment configuration
-        shell: bash
-        run: |
-          test -n "$RAILWAY_TOKEN"
-          test -n "$RAILWAY_PROJECT_ID"
-          test -n "$RAILWAY_SERVICE_ID"
-          test -n "$RAILWAY_ENVIRONMENT_ID"
-          test -n "$RAILWAY_PUBLIC_URL"
-      - run: npm install --global @railway/cli@5.64.2
-      - name: Deploy checked commit and wait for deployment outcome
-        run: node .github/scripts/deploy-railway.mjs
-      - name: Verify readiness and frontend
-        shell: bash
-        run: |
-          node .github/scripts/verify-http.mjs "$RAILWAY_PUBLIC_URL"
+        run: docker rm -f campusone-ci campusone-migration-failure || true

@@ -1,0 +1,31 @@
+# One application service; Neon is provisioned separately by the owner.
+services:
+  - type: web
+    name: campusone
+    runtime: docker
+    repo: https://github.com/R-Sundararajan/CampusOne
+    branch: main
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: checksPass
+    healthCheckPath: /api/health/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "3000"
+      - key: APP_ORIGIN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: INSTITUTIONAL_AUTH_MODE
+        value: domain-only-demo
+      - key: STORAGE_MODE
+        value: database
