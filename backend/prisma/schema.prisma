@@ -39,6 +39,14 @@ enum ComplaintStatus {
   REJECTED
 }
 
+enum ComplaintStudentGroup {
+  UG_I
+  UG_II
+  UG_III
+  UG_IV
+  PG
+}
+
 model User {
   id           String @id @default(cuid())
   name         String
@@ -60,7 +68,12 @@ model User {
   markedSessions AttendanceSession[]
   events       Event[]
   registrations EventRegistration[]
-  complaints   Complaint[]
+  complaints   Complaint[] @relation("ComplaintSubmitter")
+  verifiedComplaints Complaint[] @relation("ComplaintVerifier")
+  supervisedComplaints Complaint[] @relation("ComplaintSupervisor")
+  complaintAssignments ComplaintSupervisorAssignment[] @relation("DesignatedSupervisor")
+  designatedComplaintAssignments ComplaintSupervisorAssignment[] @relation("SupervisorDesignator")
+  complaintNotes ComplaintNote[]
   audits       AuditLog[]
 }
 
@@ -244,15 +257,58 @@ model Complaint {
   description String
   submitterId String
   status ComplaintStatus @default(SUBMITTED)
+  version Int @default(1)
+  studentGroup ComplaintStudentGroup?
+  routingConfirmed Boolean @default(false)
+  routingSource String @default("PROVISIONAL")
+  category String @default("OTHER")
+  location String?
+  verifiedById String?
+  verifiedAt DateTime?
+  rejectionReason String?
+  supervisorId String?
+  supervisorGroup ComplaintStudentGroup?
+  assignedAt DateTime?
+  coordinationStartedAt DateTime?
   adminResponse String?
   resolvedAt DateTime?
   resolutionDetails String?
   feedback String?
+  feedbackAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  submitter User @relation(fields: [submitterId], references: [id])
+  submitter User @relation("ComplaintSubmitter", fields: [submitterId], references: [id])
+  verifiedBy User? @relation("ComplaintVerifier", fields: [verifiedById], references: [id])
+  supervisor User? @relation("ComplaintSupervisor", fields: [supervisorId], references: [id])
+  notes ComplaintNote[]
   image Image?
   @@index([submitterId, createdAt])
+  @@index([status, createdAt])
+  @@index([supervisorId, status])
+}
+
+model ComplaintSupervisorAssignment {
+  studentGroup ComplaintStudentGroup @id
+  userId String?
+  assignedById String?
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User? @relation("DesignatedSupervisor", fields: [userId], references: [id])
+  assignedBy User? @relation("SupervisorDesignator", fields: [assignedById], references: [id])
+  @@index([userId])
+}
+
+model ComplaintNote {
+  id String @id @default(cuid())
+  complaintId String
+  authorId String
+  text String
+  wardenContact String?
+  createdAt DateTime @default(now())
+  complaint Complaint @relation(fields: [complaintId], references: [id])
+  author User @relation(fields: [authorId], references: [id])
+  @@index([complaintId, createdAt])
 }
 
 model Image {
