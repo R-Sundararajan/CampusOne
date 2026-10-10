@@ -16,8 +16,8 @@ export function ComplaintDetails({ id, catalog }: { id: string; catalog: Catalog
   }, [id, refresh]);
   async function save(action: string, body: object) {
     if (!c) return; setBusy(true); setError(""); setMessage("");
-    try { setCase(await api<Complaint>(`/complaints/${id}/${action}`, { ...body, version: c.version })); setMessage("Saved successfully."); }
-    catch (e) { setError((e as Error).message); setRefresh(v => v + 1); }
+    try { setCase(await api<Complaint>(`/complaints/${id}/${action}`, { ...body, version: c.version })); setMessage("Saved successfully."); return true; }
+    catch (e) { setError((e as Error).message); setRefresh(v => v + 1); return false; }
     finally { setBusy(false); setPending(undefined); }
   }
   function form(e: FormEvent<HTMLFormElement>, action: string) {
@@ -26,7 +26,7 @@ export function ComplaintDetails({ id, catalog }: { id: string; catalog: Catalog
     if (action === "reject") setPending({ action, body: { reason: f.get("reason") }, title: "Reject and close this complaint?", description: "The rejection is final. The submitter will see your reason and may provide feedback." });
     if (action === "resolve") setPending({ action, body: { resolutionDetails: f.get("resolutionDetails") }, title: "Resolve and close this complaint?", description: "The resolution is final. The submitter will see these resolution details and may provide feedback." });
     if (action === "reassign") setPending({ action, body: { supervisorGroup: f.get("supervisorGroup"), reason: f.get("reason") }, title: "Reassign this complaint?", description: "Ownership will move to the selected group's active Supervisor. The reason and previous assignment remain in the internal history." });
-    if (action === "notes") { const target = e.currentTarget; void save(action, { text: f.get("text"), wardenContact: f.get("wardenContact") }).then(() => target.reset()); }
+    if (action === "notes") { const target = e.currentTarget; void save(action, { text: f.get("text"), wardenContact: f.get("wardenContact") }).then(saved => { if (saved) target.reset(); }); }
     if (action === "feedback") void save(action, { feedback: f.get("feedback") });
   }
   async function attach(e: FormEvent<HTMLFormElement>) {

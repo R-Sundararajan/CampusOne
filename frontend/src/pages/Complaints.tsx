@@ -13,7 +13,7 @@ export function Complaints({ route }: { route: string }) {
   if (!catalog) return <p role="status">Loading complaint access…</p>;
   const subroute = route.slice("/complaints".length).replace(/^\//, "");
   const scope = subroute === "admin" || (!subroute && catalog.canAdmin) ? "admin" : subroute === "supervisor" ? "supervisor" : "mine";
-  return <>
+  return <div className="complaint-module">
     <nav className="module-tabs" aria-label="Complaints navigation">
       {catalog.canSubmit && <Link href="/complaints/mine" aria-current={scope === "mine" && ["", "mine"].includes(subroute) ? "page" : undefined}>My Complaints</Link>}
       {catalog.canSubmit && <Link href="/complaints/new" aria-current={subroute === "new" ? "page" : undefined}>Submit Complaint</Link>}
@@ -22,7 +22,7 @@ export function Complaints({ route }: { route: string }) {
       {!!catalog.supervisorGroups.length && <Link href="/complaints/supervisor" aria-current={scope === "supervisor" ? "page" : undefined}>Supervisor Work Queue</Link>}
     </nav>
     {subroute === "new" ? <ComplaintForm catalog={catalog} /> : subroute === "assignments" ? <SupervisorAssignments catalog={catalog} refresh={() => setRefresh(v => v + 1)} /> : subroute && !["mine", "admin", "supervisor"].includes(subroute) ? <ComplaintDetails id={subroute} catalog={catalog} /> : <Directory key={scope} scope={scope} catalog={catalog} />}
-  </>;
+  </div>;
 }
 function Directory({ scope, catalog }: { scope: "mine" | "admin" | "supervisor"; catalog: Catalog }) {
   const [query, setQuery] = useState(""), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0);

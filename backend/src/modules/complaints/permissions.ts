@@ -17,8 +17,11 @@ export async function authorizedGroups(tx: Prisma.TransactionClient, user: Curre
   if (!user.roles.includes("STAFF")) return [];
   return (await tx.complaintSupervisorAssignment.findMany({ where: { userId: user.id }, select: { studentGroup: true } })).map(a => a.studentGroup);
 }
-export async function eligibleSupervisor(tx: Prisma.TransactionClient, userId: string) {
-  const u = await tx.user.findFirst({ where: { id: userId, active: true, emailVerifiedAt: { not: null }, roles: { has: "STAFF" } }, select: { id: true, name: true, email: true } });
+export function supervisorAccounts(allowDemo = false) {
+  return { active: true, emailVerifiedAt: { not: null }, roles: { has: "STAFF" as const }, OR: [{ email: { endsWith: "@ssn.edu.in" }, isDemo: false }, ...(allowDemo ? [{ isDemo: true }] : [])] };
+}
+export async function eligibleSupervisor(tx: Prisma.TransactionClient, userId: string, allowDemo = false) {
+  const u = await tx.user.findFirst({ where: { id: userId, ...supervisorAccounts(allowDemo) }, select: { id: true, name: true, email: true } });
   if (!u) throw new AccountError(400, "Choose an active, verified, approved Staff account.");
   return u;
 }

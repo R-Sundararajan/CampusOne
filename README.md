@@ -2,9 +2,11 @@
 
 One campus application for attendance, club events, and campus complaints. React/Vite and Express run together in one Docker container; PostgreSQL stores structured data. Railway is the only planned cloud provider.
 
+Phase 4 details and verification: [Complaint Management and Supervisor workflow](docs/phase4-complaints.md).
+
 ## Current milestone
 
-Phase 2 adds reusable class rosters, configurable register-number parsing, assigned faculty attendance marking and audited corrections, private student attendance, filtered reports and CSV export. Institutional registration, email verification, Admin privilege approval, authentication and the Phase 1.5 portal are preserved. Phase 3 now adds club events, internal Student registration, Admin supervision and secure PostgreSQL poster storage. Complaints remain upcoming.
+Phases 2 and 3 provide attendance/rosters and club events/registration. Phase 4 now adds private Student/Staff complaints, Admin verification, five configurable Supervisor group assignments, coordination, resolution and terminal feedback. Institutional registration, authentication, privilege approval and existing modules are preserved. Local verification passes; cloud deployment remains disabled.
 
 The academic demo uses synthetic data. The revised SRS target is 50–100 normal active users and 300 peak; these targets and the 500 ms read / 2 s write targets have not been established by load tests.
 
@@ -113,7 +115,7 @@ The single workflow serializes deployment jobs and waits for the CLI deployment 
 
 ## Images, credits, and recovery
 
-Preferred image storage is a private Railway bucket, subject to actual account eligibility and networking. If unavailable, the approved fallback is raw PostgreSQL `bytea` in a separate image table, not object storage. It uses the existing database volume rather than a second upload volume. Phase 3 implements one JPEG/PNG poster per event, 2 MiB input/stored image limits, a 50 MiB application-wide atomic quota, authorized reads and metadata-only listings. The shared storage service is ready for Phase 4 to reuse; complaint workflows are not implemented.
+Preferred image storage is a private Railway bucket, subject to actual account eligibility and networking. If unavailable, the approved fallback is raw PostgreSQL `bytea` in a separate image table, not object storage. It uses the existing database volume rather than a second upload volume. Events and complaints reuse one image-storage service: one JPEG/PNG per record, 2 MiB input/stored limits, a shared 50 MiB atomic quota, authorized reads and metadata-only listings. Complaint images are private to the submitter, Admin and current authorized assigned Supervisor.
 
 Railway's trial and bucket-billing documents disagree about limited-trial bucket availability; inspect the actual account before relying on it. Both database and image usage consume storage/credits. No paid upgrade is permitted; continuous hosted availability is not guaranteed. Local Docker remains usable if Railway credits expire.
 
@@ -127,7 +129,7 @@ Local `decisions.md` and `workflow.md` are intentionally ignored. Track progress
 
 ## Portal interface
 
-Compact institutional forms and top navigation take layout cues from the supplied LMS screenshot and the public SSN LMS. The ProCoDe events reference informed readable poster/detail hierarchy. CampusOne uses an original SVG mark and illustration; no institutional photographs, logos or event artwork were copied or hotlinked. EventPoster preserves the complete image with object-fit: contain and has a missing-image fallback. Events now use that shared poster component, with authenticated images and local upload previews. Complaints remain an explicit placeholder.
+Compact institutional forms and top navigation take layout cues from the supplied LMS screenshot and the public SSN LMS. The ProCoDe events reference informed readable poster/detail hierarchy. CampusOne uses an original SVG mark and illustration; no institutional photographs, logos or event artwork were copied or hotlinked. EventPoster preserves the complete image with object-fit: contain and has a missing-image fallback. Complaint forms, queues, private attachments and timelines use the same ivory/sage/forest portal theme.
 
 ## Institutional registration and approval
 
@@ -236,3 +238,19 @@ npm run dev
 ```
 
 The two additive migrations preserve prior events/registrations and initialize the image budget from existing image metadata. No event records are added by the seed. See [the Phase 3 implementation report](docs/phase3-events.md) for APIs, migrations, files, test results, browser checks, commit hashes and limitations.
+
+## Phase 4 complaints
+
+Open **Complaints** after signing in. Student and approved Staff accounts can submit a title, description, controlled category, actual location/block and one optional JPEG/PNG image. **My Complaints** shows only the authenticated submitter's records, status, processing stage, rejection reason/resolution and feedback state.
+
+Admin uses **Admin Review Queue** for persisted overview counts, status/group/Supervisor/date/category/location filters and verification. Acceptance requires explicit routing confirmation and assigns the eligible configured Supervisor in the same transaction. Rejection requires a public reason. Accepted cases without eligible configuration remain visibly awaiting assignment.
+
+**Supervisor Assignments** manages exactly five group slots: UG I–IV and PG. Admin selects active, verified, approved institutional Staff accounts. No new authentication role or public Supervisor signup is introduced. One account may hold multiple group slots; each group has at most one current designation. Replacement/revocation requires a reason and transactionally updates unresolved cases and audit history. Closed cases retain the historical assignee, but a former Supervisor loses access when their corresponding designation changes. Production excludes synthetic local accounts.
+
+Attendance terms/class rosters lack an explicit reliable current study-year/current-term marker. Student year selections are provisional until Admin confirmation. Staff complaints always require manual Admin routing; users holding both Staff and Student privileges use the Staff/manual path. Register-number prefixes and admission years are never used to guess the current year.
+
+The currently designated and assigned Supervisor uses **Supervisor Work Queue** to record private progress and supplied Block Warden contact/handoff information, then resolve with public details. Warden coordination happens outside CampusOne; there is no Warden account/dashboard. Supervisor designation grants no attendance, club, or Admin capability. Submitters cannot see internal notes, actor personal details or internal reassignment reasons. Feedback is saved once by the original submitter after resolution or rejection and leaves status unchanged.
+
+Back up the database, regenerate Prisma and apply `202610100001_complaints` using the existing commands. The migration extends Complaint, adds five initially empty Supervisor slots and internal notes, and preserves existing records. No Supervisor accounts or complaint records are added by application startup/seed.
+
+Verified on 2026-10-10: 161 tests passed (111 prior + 50 complaint tests), 0 failed, 0 skipped, isolated PostgreSQL; generation, typechecks, builds, Docker build/readiness/non-root/runtime migration/repeated seed, root local development and Vite proxy writes passed. Desktop 1280 × 900 and mobile 390 × 844 flows passed, including images, Admin decisions, coordination, resolution, feedback, manual routing and replacement/access revocation. Direct private-image API navigation was blocked by browser tooling; API tests independently verify backend 403 responses and revoked access. See the Phase 4 report for precise evidence and limitations. No push, main merge or Railway deployment occurred.

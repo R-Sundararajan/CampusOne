@@ -11,6 +11,8 @@
   --border: #dce2d6;
 }
 
+.complaint-module .panel { padding: 24px; }
+.complaint-module .panel-title { padding: 0 0 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .complaint-form { max-width: 800px; }
 .complaint-form fieldset { min-width: 0; }
 .complaint-form .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -26,6 +28,7 @@
 .complaint-card { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; margin-bottom: 0 !important; }
 .complaint-card p { margin-bottom: 10px; }
 .complaint-card h2 { overflow-wrap: anywhere; }
+.complaint-card h2 a { display: inline-block; }
 .complaint-card-end { display: flex; align-items: flex-start; flex-direction: column; gap: 14px; }
 .complaint-snippet { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .complaint-detail-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); gap: 24px; align-items: start; }
@@ -48,6 +51,7 @@
   .complaint-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 540px) {
+  .complaint-module .panel { padding: 18px; }
   .complaint-form .form-grid, .assignment-grid, .complaint-card { grid-template-columns: 1fr; }
   .complaint-counts { grid-template-columns: repeat(2, 1fr); }
   .complaint-filters { grid-template-columns: 1fr; }

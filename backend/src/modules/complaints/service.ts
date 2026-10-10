@@ -2,7 +2,7 @@ import { Prisma, type PrismaClient } from "../../generated/prisma/client.js";
 import type { PublicUser } from "../auth/repository.js";
 import { AccountError } from "../registration/service.js";
 import { imageStorage, validateImage } from "../../services/image-storage.js";
-import { currentUser, eligibleSupervisor, requireAdmin, requireSubmitter, type CurrentUser } from "./permissions.js";
+import { currentUser, eligibleSupervisor, requireAdmin, requireSubmitter, supervisorAccounts, type CurrentUser } from "./permissions.js";
 import { groups, categories, type Submission, type ComplaintQuery } from "./validation.js";
 
 const person = { id: true, name: true, email: true, department: true } as const;
@@ -19,11 +19,11 @@ type Case = Prisma.ComplaintGetPayload<{ select: typeof selection }>;
 type Tx = Prisma.TransactionClient;
 const slotSelection = {
   studentGroup: true, userId: true, version: true, updatedAt: true,
-  user: { select: { ...person, active: true, emailVerifiedAt: true, roles: true } },
+  user: { select: { ...person, active: true, emailVerifiedAt: true, roles: true, isDemo: true } },
 } as const;
 type Slot = Prisma.ComplaintSupervisorAssignmentGetPayload<{ select: typeof slotSelection }>;
 type Context = { user: CurrentUser; slots: Slot[]; activeSlots: Slot[] };
-const eligible = (s: Slot) => !!s.user?.active && !!s.user.emailVerifiedAt && s.user.roles.includes("STAFF");
+const eligible = (s: Slot, allowDemo: boolean) => !!s.user?.active && !!s.user.emailVerifiedAt && s.user.roles.includes("STAFF") && ((s.user.email.endsWith("@ssn.edu.in") && !s.user.isDemo) || (allowDemo && s.user.isDemo));
 const isAdmin = (ctx: Context) => ctx.user.roles.includes("ADMIN");
 function assigned(c: Case, ctx: Context) {
   return ctx.activeSlots.some(s => s.studentGroup === c.supervisorGroup && s.userId === c.supervisorId);
@@ -48,12 +48,12 @@ function card(c: Case, ctx: Context) {
     canReview: admin && c.status === "SUBMITTED",
     canReassign: admin && c.status === "ACCEPTED",
     canProcess: isSupervisor(c, ctx) && c.status === "ACCEPTED",
-    canFeedback: owner && ["RESOLVED", "REJECTED"].includes(c.status) && !feedback,
+    canFeedback: owner && ["RESOLVED", "REJECTED"].includes(c.status) && feedback === null,
     canUpload: owner && c.status === "SUBMITTED",
   };
 }
 
-export function complaintsService(db: PrismaClient) {
+export function complaintsService(db: PrismaClient, allowDemo = false) {
   const storage = imageStorage();
   // One short-lived module lock serializes configuration and case mutations. Reads use
   // its shared counterpart so reassignment cannot interleave with authorization/bytes.
@@ -63,7 +63,7 @@ export function complaintsService(db: PrismaClient) {
       else await tx.$queryRaw`SELECT pg_advisory_xact_lock_shared(731004)::text`;
       const u = await currentUser(tx, user);
       const slots = await tx.complaintSupervisorAssignment.findMany({ select: slotSelection, orderBy: { studentGroup: "asc" } });
-      return fn(tx, { user: u, slots, activeSlots: slots.filter(eligible) });
+      return fn(tx, { user: u, slots, activeSlots: slots.filter(s => eligible(s, allowDemo)) });
     }, { maxWait: 10000, timeout: 15000 });
   }
   async function find(tx: Tx, id: string, lock = false) {
@@ -110,8 +110,8 @@ export function complaintsService(db: PrismaClient) {
         provisionalSelectionAllowed: ctx.user.roles.includes("STUDENT") && !ctx.user.roles.includes("STAFF"),
         routingExplanation: "Academic terms and rosters do not record a reliable current study year. Student selections are provisional; Admin must confirm routing. Staff complaints use manual routing.",
         ...(isAdmin(ctx) ? {
-          assignments: ctx.slots.map(s => ({ studentGroup: s.studentGroup, userId: s.userId, version: s.version, updatedAt: s.updatedAt, eligible: eligible(s), user: s.user ? { id: s.user.id, name: s.user.name, email: s.user.email } : null })),
-          candidates: await tx.user.findMany({ where: { active: true, emailVerifiedAt: { not: null }, roles: { has: "STAFF" } }, select: person, orderBy: { name: "asc" } }),
+          assignments: ctx.slots.map(s => ({ studentGroup: s.studentGroup, userId: s.userId, version: s.version, updatedAt: s.updatedAt, eligible: eligible(s, allowDemo), user: s.user ? { id: s.user.id, name: s.user.name, email: s.user.email } : null })),
+          candidates: await tx.user.findMany({ where: supervisorAccounts(allowDemo), select: person, orderBy: { name: "asc" } }),
         } : {}),
       }));
     },
@@ -190,7 +190,7 @@ export function complaintsService(db: PrismaClient) {
         const slot = ctx.slots.find(s => s.studentGroup === studentGroup);
         if (!slot || slot.version !== version) throw new AccountError(409, "This assignment changed. Reload before saving.");
         if (slot.userId === userId) throw new AccountError(400, "Choose a different Supervisor or revoke the assignment.");
-        if (userId) await eligibleSupervisor(tx, userId);
+        if (userId) await eligibleSupervisor(tx, userId, allowDemo);
         await tx.complaintSupervisorAssignment.update({ where: { studentGroup }, data: { userId, assignedById: user.id, version: { increment: 1 } } });
         const cases = await tx.complaint.findMany({ where: { status: "ACCEPTED", supervisorGroup: studentGroup }, select: { id: true, supervisorId: true } });
         for (const c of cases) {

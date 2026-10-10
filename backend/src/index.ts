@@ -19,7 +19,7 @@ const app = await createApp({
   registration: registrationService(db, createMailer(config), config.appOrigin),
   attendance: attendanceService(db),
   events: eventsService(db),
-  complaints: complaintsService(db),
+  complaints: complaintsService(db, config.nodeEnv !== "production"),
   checkDatabase: async () => {
     await db.$queryRaw`SELECT 1`;
   },
