@@ -15,7 +15,7 @@ export async function validateImage(
   if (!Buffer.isBuffer(bytes) || !bytes.length)
     throw new AccountError(400, "Select a JPEG or PNG image.");
   if (bytes.length > MAX_IMAGE_BYTES)
-    throw new AccountError(413, "Posters must be at most 2 MiB.");
+    throw new AccountError(413, "Images must be at most 2 MiB.");
   if (!["image/jpeg", "image/png"].includes(mimeType))
     throw new AccountError(400, "Only JPEG and PNG images are supported.");
   if (
@@ -52,7 +52,7 @@ export async function validateImage(
     if (output.length > MAX_IMAGE_BYTES)
       throw new AccountError(
         413,
-        "The decoded poster exceeds 2 MiB. Use a smaller image.",
+        "The decoded image exceeds 2 MiB. Use a smaller image.",
       );
     return { bytes: output, mimeType: mimeType as StoredImage["mimeType"] };
   } catch (error) {

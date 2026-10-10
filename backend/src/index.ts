@@ -7,9 +7,10 @@ import { createMailer } from "./services/mail.js";
 import { attendanceService } from "./modules/attendance/service.js";
 
 import { eventsService } from "./modules/events/service.js";
+import { complaintsService } from "./modules/complaints/service.js";
 
 if (process.env.STORAGE_MODE && process.env.STORAGE_MODE !== "database")
-  throw new Error("Only STORAGE_MODE=database is supported in Phase 3.");
+  throw new Error("Only STORAGE_MODE=database is supported.");
 const config = loadConfig();
 const db = createDatabase(config.databaseUrl);
 const app = await createApp({
@@ -18,6 +19,7 @@ const app = await createApp({
   registration: registrationService(db, createMailer(config), config.appOrigin),
   attendance: attendanceService(db),
   events: eventsService(db),
+  complaints: complaintsService(db),
   checkDatabase: async () => {
     await db.$queryRaw`SELECT 1`;
   },

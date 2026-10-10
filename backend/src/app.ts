@@ -17,6 +17,8 @@ import {
 
 import { eventsRoutes } from "./modules/events/routes.js";
 import type { EventsService } from "./modules/events/service.js";
+import { complaintsRoutes } from "./modules/complaints/routes.js";
+import type { ComplaintsService } from "./modules/complaints/service.js";
 
 export type AppDependencies = {
   config: Config;
@@ -26,6 +28,7 @@ export type AppDependencies = {
   registration?: RegistrationService;
   attendance?: AttendanceService;
   events?: EventsService;
+  complaints?: ComplaintsService;
 };
 
 export async function createApp({
@@ -36,6 +39,7 @@ export async function createApp({
   registration,
   attendance,
   events,
+  complaints,
 }: AppDependencies) {
   const app = express();
   app.disable("x-powered-by");
@@ -85,6 +89,7 @@ export async function createApp({
   if (attendance)
     app.use("/api/attendance", attendanceRoutes(attendance, auth, config));
   if (events) app.use("/api/events", eventsRoutes(events, auth, config));
+  if (complaints) app.use("/api/complaints", complaintsRoutes(complaints, auth, config));
   // API errors must never be masked by the SPA fallback.
   app.use("/api", (_req, res) =>
     res.status(404).json({ error: "API route not found" }),
