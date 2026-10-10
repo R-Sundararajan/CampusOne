@@ -18,7 +18,7 @@ const modules = [
     href: "/complaints",
     title: "Campus support",
     description: "Submit a concern and follow its resolution.",
-    phase: "Phase 4",
+    phase: "Available",
   },
 ];
 export function Dashboard({ user, route }: { user: User; route: string }) {
@@ -73,7 +73,7 @@ export function Dashboard({ user, route }: { user: User; route: string }) {
         <section className="panel">
           <div className="panel-title">
             <h2>Campus services</h2>
-            <span className="muted">Attendance & events are available</span>
+            <span className="muted">Campus services are available</span>
           </div>
           <div className="service-list">
             {visible.map((m, i) => (
@@ -92,7 +92,7 @@ export function Dashboard({ user, route }: { user: User; route: string }) {
           </div>
           <p className="panel-footnote">
             Open Attendance for class records and Events for club activities.
-            Campus support is an upcoming service.
+            Use Campus support for complaints and resolution tracking.
           </p>
         </section>
         <aside className="panel profile-summary">

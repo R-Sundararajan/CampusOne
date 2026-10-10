@@ -9,6 +9,7 @@ import { Approvals } from "./pages/Approvals";
 import { Attendance } from "./pages/Attendance";
 
 import { Events } from "./pages/Events";
+import { Complaints } from "./pages/Complaints";
 
 export default function App() {
   const route = useRoute();
@@ -56,6 +57,8 @@ export default function App() {
       )}
       {route === "/events" || route.startsWith("/events/") ? (
         <Events key={route} user={user} route={route} />
+      ) : route === "/complaints" || route.startsWith("/complaints/") ? (
+        <Complaints key={route} route={route} />
       ) : route === "/attendance" ? (
         <Attendance user={user} />
       ) : route === "/profile" ? (
