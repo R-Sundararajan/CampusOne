@@ -1,0 +1,11 @@
+ALTER TABLE "Event" ALTER COLUMN "description" SET DEFAULT '', ALTER COLUMN "venue" SET DEFAULT '', ALTER COLUMN "startsAt" DROP NOT NULL, ALTER COLUMN "registrationEndsAt" DROP NOT NULL, ALTER COLUMN "status" SET DEFAULT 'DRAFT';
+ALTER TABLE "Event" ADD COLUMN "endsAt" TIMESTAMP(3), ADD COLUMN "version" INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE "Event" ADD CONSTRAINT "Event_chronology" CHECK (("endsAt" IS NULL OR ("startsAt" IS NOT NULL AND "endsAt" > "startsAt")) AND ("registrationEndsAt" IS NULL OR ("startsAt" IS NOT NULL AND "registrationEndsAt" <= "startsAt")));
+ALTER TABLE "EventRegistration" ADD COLUMN "id" TEXT;
+UPDATE "EventRegistration" SET "id" = 'legacy-' || md5("eventId" || ':' || "studentId");
+ALTER TABLE "EventRegistration" ALTER COLUMN "id" SET NOT NULL;
+CREATE UNIQUE INDEX "EventRegistration_id_key" ON "EventRegistration"("id");
+CREATE INDEX "Event_status_startsAt_idx" ON "Event"("status", "startsAt");
+CREATE INDEX "Event_registrationEndsAt_idx" ON "Event"("registrationEndsAt");
+CREATE INDEX "EventRegistration_studentId_createdAt_idx" ON "EventRegistration"("studentId", "createdAt");
+INSERT INTO "ImageBudget" ("id", "usedBytes") SELECT 1, COALESCE(SUM("sizeBytes"), 0) FROM "Image" ON CONFLICT ("id") DO UPDATE SET "usedBytes" = EXCLUDED."usedBytes";

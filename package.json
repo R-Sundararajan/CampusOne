@@ -1,0 +1,38 @@
+{
+  "name": "campusone",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "overrides": {
+    "deepmerge-ts": "^8.0.2",
+    "mysql2": "^3.24.5"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,ui \"npm:dev:api\" \"npm:dev:ui\"",
+    "dev:api": "npm run dev -w backend",
+    "dev:ui": "npm run dev -w frontend",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "start": "npm run start -w backend",
+    "test": "npm run test -w backend && npm run test -w frontend",
+    "test:release": "node --test .github/scripts/*.test.mjs",
+    "test:db": "npm run test:db -w backend",
+    "db:generate": "npm run db:generate -w backend",
+    "db:migrate": "npm run db:migrate -w backend",
+    "db:verify-upgrade": "npm run db:verify-upgrade -w backend",
+    "db:dev": "npm run db:dev -w backend",
+    "db:seed": "npm run db:seed -w backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "typescript": "~5.9.3"
+  }
+}
