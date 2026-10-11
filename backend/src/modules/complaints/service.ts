@@ -105,7 +105,7 @@ export function complaintsService(db: PrismaClient, allowDemo = false, mode: Ins
   return {
     catalog(user: PublicUser) {
       return transaction(user, false, async (tx, ctx) => ({
-        groups, categories,
+        groups, categories, institutionalAuthMode: mode,
         canSubmit: ctx.user.roles.some(r => r === "STUDENT" || r === "STAFF"),
         canAdmin: isAdmin(ctx),
         supervisorGroups: ctx.activeSlots.filter(s => s.userId === user.id).map(s => s.studentGroup),
@@ -186,13 +186,18 @@ export function complaintsService(db: PrismaClient, allowDemo = false, mode: Ins
         return detail(tx, updated, ctx);
       });
     },
-    configure(user: PublicUser, studentGroup: typeof groups[number], version: number, userId: string | null, reason: string, identityConfirmed?: boolean) {
+    configure(user: PublicUser, studentGroup: typeof groups[number], version: number, userId: string | null, reason: string, identityConfirmed?: boolean, syntheticIdentityAttested?: boolean) {
       return transaction(user, true, async (tx, ctx) => {
         requireAdmin(ctx.user);
         const slot = ctx.slots.find(s => s.studentGroup === studentGroup);
         if (!slot || slot.version !== version) throw new AccountError(409, "This assignment changed. Reload before saving.");
         if (slot.userId === userId) throw new AccountError(400, "Choose a different Supervisor or revoke the assignment.");
-        if (userId && mode === "domain-only-demo" && identityConfirmed !== true)
+        if (syntheticIdentityAttested) {
+          if (mode !== "domain-only-demo") throw new AccountError(400, "Synthetic fixture attestation is only available in domain-only-demo mode.");
+          if (identityConfirmed === true) throw new AccountError(400, "Synthetic fixture attestation must not claim institutional identity.");
+          if (reason.trim().length < 10) throw new AccountError(400, "Record the operator authorization and synthetic fixture evidence in the reason.");
+        }
+        if (userId && mode === "domain-only-demo" && !syntheticIdentityAttested && identityConfirmed !== true)
           throw new AccountError(400, "Verify the Staff identity out of band and confirm before designating a Supervisor.");
         if (userId) await eligibleSupervisor(tx, userId, allowDemo, mode);
         await tx.complaintSupervisorAssignment.update({ where: { studentGroup }, data: { userId, assignedById: user.id, version: { increment: 1 } } });
@@ -201,7 +206,7 @@ export function complaintsService(db: PrismaClient, allowDemo = false, mode: Ins
           await tx.complaint.update({ where: { id: c.id }, data: { supervisorId: userId, assignedAt: userId ? new Date() : null, version: { increment: 1 } } });
           await audit(tx, user.id, c.id, c.supervisorId ? "REASSIGNED" : "ASSIGNED", { previousSupervisorId: c.supervisorId, supervisorId: userId, supervisorGroup: studentGroup, reason });
         }
-        await tx.auditLog.create({ data: { actorId: user.id, entityType: "ComplaintSupervisorAssignment", entityId: studentGroup, action: "COMPLAINT_SUPERVISOR_CHANGED", changes: { previousUserId: slot.userId, userId, reason, identityConfirmed: identityConfirmed === true, transferredCases: cases.length } } });
+        await tx.auditLog.create({ data: { actorId: user.id, entityType: "ComplaintSupervisorAssignment", entityId: studentGroup, action: "COMPLAINT_SUPERVISOR_CHANGED", changes: { previousUserId: slot.userId, userId, reason, identityConfirmed: identityConfirmed === true, syntheticIdentityAttested: syntheticIdentityAttested === true, transferredCases: cases.length } } });
         return { studentGroup, userId, transferredCases: cases.length };
       });
     },

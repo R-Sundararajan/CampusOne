@@ -137,6 +137,34 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("Integrated production demo regi
     await post("/auth/verification/resend", { email: address }); expect(sent).not.toHaveBeenCalled();
     expect((await get("/auth/policy")).body.institutionalAuthMode).toBe(mode);
   });
+  it("creates clubs only through Admin access, audits once, and preserves exact-name retries", async () => {
+    const name = key + "-admin-created";
+    const path = "/admin/clubs";
+    expect((await post(path, { name }, "")).status).toBe(401);
+    for (const who of ["student", "staff", "head"])
+      expect((await post(path, { name }, who)).status).toBe(403);
+    for (const body of [{ name: "  " }, { name: "a".repeat(101) }, { name, userId: users.head.id }])
+      expect((await post(path, body, "admin")).status).toBe(400);
+    try {
+      const results = await Promise.all([
+        post(path, { name: " " + name + " " }, "admin"),
+        post(path, { name }, "admin"),
+      ]);
+      expect(results.map(r => r.status)).toEqual([201, 201]);
+      expect(results[0].body).toEqual(results[1].body);
+      const created = results[0].body;
+      expect(created.name).toBe(name);
+      expect(await db.clubAssignment.count({ where: { clubId: created.id } })).toBe(0);
+      const audit = await db.auditLog.findMany({ where: { entityId: created.id, action: "CLUB_CREATED" } });
+      expect(audit).toHaveLength(1);
+      expect(audit[0].actorId).toBe(users.admin.id);
+      expect(audit[0].changes).toEqual({ name });
+      expect((await get("/admin/role-requests", "admin")).body.clubs).toContainEqual(created);
+      expect((await get("/admin/club-access", "admin")).body.clubs).toContainEqual(created);
+    } finally {
+      await db.club.deleteMany({ where: { name } });
+    }
+  });
   it("rejects exact-domain lookalikes and all public Admin or Supervisor privilege injection", async () => {
     for (const address of ["u@fake-ssn.edu.in", "u@sub.ssn.edu.in", "u@ssn.edu.in.evil.test", "u@ssn.edu.іn"]) expect((await post("/auth/register", input(address))).status).toBe(400);
     for (const type of ["ADMIN", "SUPERVISOR"]) expect((await post("/auth/register", input(email(), type))).status).toBe(400);
@@ -176,6 +204,45 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("Integrated production demo regi
     expect((await post(route, { decision: "APPROVED", clubId, identityConfirmed: true }, "admin")).status).toBe(204);
     expect((await request(app).get("/api/auth/me").set("Cookie", cookie)).body.user.roles).toEqual(["STUDENT", "CLUB_HEAD"]);
   });
+  it.each(["STAFF", "CLUB_HEAD"])("audits explicit synthetic %s approval without asserting institutional identity or email ownership", async type => {
+    const { user } = await register(type);
+    const r = await db.roleRequest.findFirstOrThrow({ where: { userId: user.id } });
+    const path = `/admin/role-requests/${r.id}/decision`;
+    const body = { decision: "APPROVED", syntheticIdentityAttested: true,
+      identityEvidence: "Operator authorized this controlled synthetic test fixture out of band; no mailbox ownership claim.",
+      ...(type === "CLUB_HEAD" ? { clubId } : { offeringIds: [offeringId] }) };
+    expect((await post(path, body, "student")).status).toBe(403);
+    for (const invalid of [{ ...body, identityEvidence: undefined }, { ...body, identityEvidence: "short" }, { ...body, identityConfirmed: true }]) {
+      expect((await post(path, invalid, "admin")).status).toBe(400);
+      expect((await db.roleRequest.findUniqueOrThrow({ where: { id: r.id } })).status).toBe("PENDING");
+      expect((await db.user.findUniqueOrThrow({ where: { id: user.id } })).roles).toEqual([]);
+    }
+    expect((await post(path, body, "admin")).status).toBe(204);
+    const approved = await db.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(approved.roles).toEqual([type]);
+    expect(approved.emailVerifiedAt).toBeNull();
+    expect(approved.isDemo).toBe(false); // Local-only seed accounts remain excluded from production.
+    expect(await db.emailVerification.count({ where: { userId: user.id } })).toBe(0);
+    expect(sent).not.toHaveBeenCalled();
+    const audit = await db.auditLog.findFirstOrThrow({ where: { entityId: r.id, action: "ROLE_REQUEST_APPROVED" } });
+    expect(audit.actorId).toBe(users.admin.id);
+    expect(audit.changes).toMatchObject({ userId: user.id, role: type, ...body });
+    if (type === "STAFF") {
+      expect(await db.teachingAssignment.count({ where: { staffId: user.id, offeringId } })).toBe(1);
+      expect((await get("/complaints/catalog", "admin")).body.candidates).toContainEqual({ id: approved.id, name: approved.name, email: approved.email, department: approved.department });
+    } else expect(await db.clubAssignment.count({ where: { userId: user.id, clubId } })).toBe(1);
+  });
+  it("refuses synthetic attestation in legacy mode and rejects public attestation injection", async () => {
+    expect((await post("/auth/register", { ...input(email(), "STAFF"), syntheticIdentityAttested: true, identityEvidence: "Public self attestation is forbidden" })).status).toBe(400);
+    const { user } = await register("STAFF");
+    const verifiedAdmin = await db.user.create({ data: { name: "Verified test Admin", email: email(), passwordHash: await hashPassword(password), roles: ["ADMIN"], emailVerifiedAt: new Date(), department: "Test" } });
+    await db.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+    const r = await db.roleRequest.findFirstOrThrow({ where: { userId: user.id } });
+    const legacy = registrationService(db, sent, origin, "email-verification", false);
+    await expect(legacy.decide(r.id, verifiedAdmin.id, { decision: "APPROVED", offeringIds: [], syntheticIdentityAttested: true, identityEvidence: "Operator-authorized synthetic fixture; not institutional identity" })).rejects.toThrow("only available in domain-only-demo");
+    expect((await db.roleRequest.findUniqueOrThrow({ where: { id: r.id } })).status).toBe("PENDING");
+    expect((await db.user.findUniqueOrThrow({ where: { id: user.id } })).roles).toEqual([]);
+  });
   it("requires out-of-band Admin confirmation for roster linkage and teaching grants", async () => {
     const roster = { classGroupId: classId, prefix: "995510", suffixWidth: 3, input: "1,2", names: {} };
     const preview = await attendance.rosterPreview(users.admin, roster);
@@ -187,6 +254,32 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("Integrated production demo regi
     const grant = { staffId: users.replacement.id, offeringId, assigned: true };
     expect((await post("/attendance/admin/assignments", grant, "admin")).status).toBe(400);
     expect((await post("/attendance/admin/assignments", { ...grant, identityConfirmed: true }, "admin")).status).toBe(204);
+  });
+  it("audits synthetic academic authorization without claiming identity or mailbox ownership", async () => {
+    const grant = { staffId: users.replacement.id, offeringId, assigned: true, syntheticIdentityAttested: true };
+    expect((await post("/attendance/admin/assignments", grant, "admin")).status).toBe(400);
+    const identityEvidence = "Operator-authorized controlled synthetic Staff fixture; no institutional identity claim.";
+    expect((await post("/attendance/admin/assignments", { ...grant, identityEvidence, identityConfirmed: true }, "admin")).status).toBe(400);
+    expect((await post("/attendance/admin/assignments", { ...grant, identityEvidence }, "student")).status).toBe(403);
+    expect((await post("/attendance/admin/assignments", { ...grant, identityEvidence }, "admin")).status).toBe(204);
+    const audit = await db.auditLog.findFirstOrThrow({ where: { action: "TEACHING_ASSIGNMENT", entityId: offeringId, actorId: users.admin.id }, orderBy: { createdAt: "desc" } });
+    expect(audit.changes).toMatchObject({ ...grant, identityEvidence });
+    const body = { registerNumber: "995510002", email: users.student.email, reason: "Operator authorized this synthetic Student and synthetic register number for QA; no mailbox ownership claim.", confirmed: true, syntheticIdentityAttested: true };
+    expect((await post("/attendance/admin/link", { ...body, identityConfirmed: true }, "admin")).status).toBe(400);
+    expect((await post("/attendance/admin/link", body, "student")).status).toBe(403);
+    expect((await post("/attendance/admin/link", body, "admin")).status).toBe(204);
+    const linked = await db.studentIdentity.findUniqueOrThrow({ where: { registerNumber: body.registerNumber } });
+    const linkAudit = await db.auditLog.findFirstOrThrow({ where: { action: "STUDENT_IDENTITY_LINK", entityId: linked.id }, orderBy: { createdAt: "desc" } });
+    expect(linkAudit.changes).toMatchObject({ syntheticIdentityAttested: true, identityConfirmed: false, reason: body.reason });
+    expect((await db.user.findUniqueOrThrow({ where: { id: users.student.id } })).emailVerifiedAt).toBeNull();
+    const legacy = attendanceService(db, "email-verification", false);
+    await db.user.updateMany({ where: { id: { in: [users.admin.id, users.replacement.id] } }, data: { emailVerifiedAt: new Date() } });
+    try {
+      await expect(legacy.assign(users.admin, { ...grant, identityEvidence })).rejects.toThrow("only available in domain-only-demo");
+      await expect(legacy.link(users.admin, { ...body, confirmed: true })).rejects.toThrow("only available in domain-only-demo");
+    } finally {
+      await db.user.updateMany({ where: { id: { in: [users.admin.id, users.replacement.id] } }, data: { emailVerifiedAt: null } });
+    }
   });
   it("uses Student plus Club Head attendance and event access while keeping other Students private", async () => {
     const selection = { offeringId, date: "2026-10-10", period: 1, mode: "PRESENT" as const, input: "1", overrides: [] };
@@ -201,6 +294,32 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("Integrated production demo regi
     expect((await post(`/events/${draft.id}/register`, {}, "head")).status).toBe(200);
     expect(await db.eventRegistration.count({ where: { eventId: draft.id, studentId: users.head.id } })).toBe(1);
     expect((await get(`/events/${draft.id}/registrations`, "other")).status).toBe(403);
+  });
+  it("keeps synthetic Supervisor and club grants explicit, audited and Admin-only", async () => {
+    const reason = "Operator-authorized controlled synthetic fixture; reviewed Admin role attestation. No institutional identity or mailbox ownership claim.";
+    for (const group of groups) {
+      const grant = { version: 1, userId: users.staff.id, reason, syntheticIdentityAttested: true, identityConfirmed: false };
+      expect((await post('/complaints/supervisors/' + group, { ...grant, reason: 'demo' }, 'admin')).status).toBe(400);
+      expect((await post('/complaints/supervisors/' + group, { ...grant, identityConfirmed: true }, 'admin')).status).toBe(400);
+      expect((await post('/complaints/supervisors/' + group, grant, 'student')).status).toBe(403);
+      expect((await post('/complaints/supervisors/' + group, grant, 'admin')).status).toBe(200);
+      const audit = await db.auditLog.findFirstOrThrow({ where: { actorId: users.admin.id, entityId: group, action: 'COMPLAINT_SUPERVISOR_CHANGED' }, orderBy: { createdAt: 'desc' } });
+      expect(audit.changes).toMatchObject({ syntheticIdentityAttested: true, identityConfirmed: false, reason });
+    }
+    const club = { userId: users.head.id, clubId, active: true, reason, syntheticIdentityAttested: true, identityConfirmed: false };
+    expect((await post('/admin/club-access', { ...club, reason: 'demo' }, 'admin')).status).toBe(400);
+    expect((await post('/admin/club-access', { ...club, identityConfirmed: true }, 'admin')).status).toBe(400);
+    expect((await post('/admin/club-access', club, 'head')).status).toBe(403);
+    expect((await post('/admin/club-access', club, 'admin')).status).toBe(204);
+    const audit = await db.auditLog.findFirstOrThrow({ where: { actorId: users.admin.id, action: 'CLUB_ACCESS_GRANTED' }, orderBy: { createdAt: 'desc' } });
+    expect(audit.changes).toMatchObject(club);
+    await db.user.updateMany({ where: { id: { in: [users.admin.id, users.head.id] } }, data: { emailVerifiedAt: new Date() } });
+    try {
+      await expect(registrationService(db, sent, origin, 'email-verification', false).changeClubAccess(users.admin.id, club)).rejects.toThrow('only available in domain-only-demo');
+      await expect(complaintsService(db, false, 'email-verification').configure(users.admin, 'UG_I', 2, users.replacement.id, reason, false, true)).rejects.toThrow('only available in domain-only-demo');
+    } finally {
+      await db.user.updateMany({ where: { id: { in: [users.admin.id, users.head.id] } }, data: { emailVerifiedAt: null } });
+    }
   });
   it("combines Staff teaching and assigned Supervisor access without creating club permissions", async () => {
     expect((await get("/attendance/catalog", "staff")).body.offerings.some((o: { id: string }) => o.id === offeringId)).toBe(true);

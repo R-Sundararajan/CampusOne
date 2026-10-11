@@ -3,7 +3,7 @@ export const categoryLabels: Record<string, string> = { FACILITIES: "Facilities"
 export const statusLabels: Record<string, string> = { SUBMITTED: "Submitted", ACCEPTED: "Accepted", RESOLVED: "Resolved", REJECTED: "Rejected" };
 export type Person = { id: string; name: string; email: string; department?: string };
 export type Assignment = { studentGroup: string; userId: string | null; user: Person | null; version: number; eligible: boolean };
-export type Catalog = { groups: string[]; categories: string[]; canSubmit: boolean; canAdmin: boolean; supervisorGroups: string[]; provisionalSelectionAllowed: boolean; routingExplanation: string; assignments?: Assignment[]; candidates?: Person[] };
+export type Catalog = { institutionalAuthMode?: string; groups: string[]; categories: string[]; canSubmit: boolean; canAdmin: boolean; supervisorGroups: string[]; provisionalSelectionAllowed: boolean; routingExplanation: string; assignments?: Assignment[]; candidates?: Person[] };
 export type Complaint = {
   id: string; title: string; description: string; status: string; version: number; stage: string;
   studentGroup: string | null; routingConfirmed: boolean; routingSource: string; category: string; location: string | null;

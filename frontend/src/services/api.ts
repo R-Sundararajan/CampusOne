@@ -20,6 +20,7 @@ export const roleLabel: Record<Role, string> = {
   CLUB_HEAD: "Club Head",
   ADMIN: "Admin",
 };
+export const sessionExpiredEvent = "campusone:session-expired";
 export async function api<T = void>(path: string, body?: unknown): Promise<T> {
   const response = await fetch("/api" + path, {
     credentials: "same-origin",
@@ -28,6 +29,8 @@ export async function api<T = void>(path: string, body?: unknown): Promise<T> {
       body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (response.status === 401 && path !== "/auth/login" && path !== "/auth/me")
+    window.dispatchEvent(new Event(sessionExpiredEvent));
   if (response.status === 204) return undefined as T;
   const data = await response.json().catch(() => ({}));
   if (!response.ok)

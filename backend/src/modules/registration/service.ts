@@ -210,6 +210,7 @@ export function registrationService(
         }),
       ]);
       return {
+        institutionalAuthMode: mode,
         requests,
         clubs,
         offerings: offerings.map((o) => ({
@@ -223,6 +224,23 @@ export function registrationService(
           ].join(" · "),
         })),
       };
+    },
+    async createClub(actorId: string, name: string) {
+      return db.$transaction(async (tx) => {
+        const actor = await tx.user.findUnique({ where: { id: actorId } });
+        if (!accountEligible(actor, mode, allowDemo) || !actor.roles.includes("ADMIN"))
+          throw new AccountError(403, "Admin access required.");
+        // Serialize exact-name retries so only the creator records an audit entry.
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(731005)::text`;
+        const existing = await tx.club.findUnique({ where: { name } });
+        if (existing) return existing;
+        const club = await tx.club.create({ data: { name } });
+        await tx.auditLog.create({ data: {
+          actorId, action: "CLUB_CREATED", entityType: "Club", entityId: club.id,
+          changes: { name },
+        } });
+        return club;
+      });
     },
     async clubAccess() {
       const [clubs, heads, assignments] = await Promise.all([
@@ -247,7 +265,7 @@ export function registrationService(
           },
         }),
       ]);
-      return { clubs, heads, assignments };
+      return { institutionalAuthMode: mode, clubs, heads, assignments };
     },
     async changeClubAccess(
       actorId: string,
@@ -257,6 +275,7 @@ export function registrationService(
         active: boolean;
         reason: string;
         identityConfirmed?: boolean;
+        syntheticIdentityAttested?: boolean;
       },
     ) {
       await db.$transaction(async (tx) => {
@@ -277,7 +296,12 @@ export function registrationService(
           throw new AccountError(400, "Select an approved Club Head.");
         if (!(await tx.club.findUnique({ where: { id: input.clubId } })))
           throw new AccountError(400, "Club not found.");
-        if (input.active && mode === "domain-only-demo" && input.identityConfirmed !== true)
+        if (input.syntheticIdentityAttested) {
+          if (mode !== "domain-only-demo") throw new AccountError(400, "Synthetic fixture attestation is only available in domain-only-demo mode.");
+          if (input.identityConfirmed === true) throw new AccountError(400, "Synthetic fixture attestation must not claim institutional identity.");
+          if (input.reason.trim().length < 10) throw new AccountError(400, "Record the operator authorization and synthetic fixture evidence in the reason.");
+        }
+        if (input.active && mode === "domain-only-demo" && !input.syntheticIdentityAttested && input.identityConfirmed !== true)
           throw new AccountError(400, "Verify the person's institutional identity out of band and confirm before granting access.");
         if (input.active)
           await tx.clubAssignment.upsert({
@@ -343,7 +367,12 @@ export function registrationService(
         if (!claimed.count)
           throw new AccountError(409, "This request has already been reviewed");
         if (decision.decision === "APPROVED") {
-          if (mode === "domain-only-demo" && decision.identityConfirmed !== true)
+          if (decision.syntheticIdentityAttested === true) {
+            if (mode !== "domain-only-demo")
+              throw new AccountError(400, "Synthetic identity attestation is only available in domain-only-demo mode.");
+            if (decision.identityConfirmed === true || !decision.identityEvidence || decision.identityEvidence.trim().length < 10 || decision.identityEvidence.length > 500)
+              throw new AccountError(400, "Record out-of-band authorization of this controlled synthetic fixture without claiming institutional identity.");
+          } else if (mode === "domain-only-demo" && decision.identityConfirmed !== true)
             throw new AccountError(400, "Verify the person's institutional identity out of band and confirm before approving privileged access.");
           if (request.role === "CLUB_HEAD") {
             if (!decision.clubId || decision.offeringIds.length)

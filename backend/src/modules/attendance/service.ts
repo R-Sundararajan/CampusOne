@@ -72,6 +72,15 @@ export function csv(rows: unknown[][]) {
 }
 
 export function attendanceService(db: PrismaClient, mode: InstitutionalAuthMode = "email-verification", allowDemo = true) {
+  function confirmIdentity(input: { identityConfirmed?: boolean; syntheticIdentityAttested?: boolean }, evidence: string | undefined) {
+    if (input.syntheticIdentityAttested) {
+      check(mode === "domain-only-demo", "Synthetic fixture attestation is only available in domain-only-demo mode.");
+      check(input.identityConfirmed !== true, "Synthetic fixture attestation must not claim institutional identity.");
+      check(!!evidence && evidence.trim().length >= 10 && evidence.trim().length <= 500, "Record the operator authorization and synthetic fixture evidence.");
+    } else if (mode === "domain-only-demo") {
+      check(input.identityConfirmed === true, "Verify institutional identity out of band or explicitly attest an authorized synthetic fixture.");
+    }
+  }
   async function current(tx: Db, user: PublicUser, role: "ADMIN" | "STAFF") {
     const u = await tx.user.findUnique({
       where: { id: user.id },
@@ -361,6 +370,7 @@ export function attendanceService(db: PrismaClient, mode: InstitutionalAuthMode 
         orderBy: { subject: { code: "asc" } },
       });
       return {
+        institutionalAuthMode: mode,
         offerings,
         classes: await db.classGroup.findMany({
           where: admin
@@ -473,8 +483,7 @@ export function attendanceService(db: PrismaClient, mode: InstitutionalAuthMode 
           "Choose an eligible, active Staff account.",
         );
         const where = { staffId: input.staffId, offeringId: input.offeringId };
-        if (input.assigned && mode === "domain-only-demo")
-          check(input.identityConfirmed === true, "Confirm the Staff identity out of band before granting a teaching assignment.");
+        if (input.assigned) confirmIdentity(input, input.identityEvidence);
         if (input.assigned)
           await tx.teachingAssignment.upsert({
             where: { staffId_offeringId: where },
@@ -632,8 +641,7 @@ export function attendanceService(db: PrismaClient, mode: InstitutionalAuthMode 
     async link(user: PublicUser, input: z.infer<typeof linkSchema>) {
       return write(async (tx) => {
         await current(tx, user, "ADMIN");
-        if (mode === "domain-only-demo")
-          check(input.identityConfirmed === true, "Verify the person's institutional identity and register number out of band before linking.");
+        confirmIdentity(input, input.reason);
         const candidate = await tx.user.findUnique({
           where: { email: input.email },
           select: { id: true },
@@ -734,6 +742,7 @@ export function attendanceService(db: PrismaClient, mode: InstitutionalAuthMode 
             reason: input.reason,
             reconciledIdentityId: previous?.id ?? null,
             identityConfirmed: input.identityConfirmed === true,
+            syntheticIdentityAttested: input.syntheticIdentityAttested === true,
           },
         );
       });

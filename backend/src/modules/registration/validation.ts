@@ -30,6 +30,8 @@ export const decisionSchema = z.discriminatedUnion("decision", [
       clubId: z.string().min(1).max(100).optional(),
       offeringIds: z.array(z.string().min(1).max(100)).max(30).default([]),
       identityConfirmed: z.boolean().optional(),
+      syntheticIdentityAttested: z.boolean().optional(),
+      identityEvidence: z.string().trim().min(10).max(500).optional(),
     })
     .strict(),
   z

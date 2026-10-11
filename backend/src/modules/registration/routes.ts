@@ -134,6 +134,14 @@ export function registrationRoutes(
     requireRoles("ADMIN"),
     async (_req, res) => res.json(await service.clubAccess()),
   );
+  router.post("/admin/clubs", authenticate, requireRoles("ADMIN"), async (req, res) => {
+    const input = z.object({ name: z.string().trim().min(3).max(100) }).strict().safeParse(req.body);
+    if (!input.success) {
+      res.status(400).json({ error: "Enter a club name of 3–100 characters." });
+      return;
+    }
+    res.status(201).json(await service.createClub(req.user!.id, input.data.name));
+  });
   router.post(
     "/admin/club-access",
     authenticate,
@@ -146,6 +154,7 @@ export function registrationRoutes(
           active: z.boolean(),
           reason: z.string().trim().min(3).max(500),
           identityConfirmed: z.boolean().optional(),
+          syntheticIdentityAttested: z.boolean().optional(),
         })
         .strict()
         .safeParse(req.body);
