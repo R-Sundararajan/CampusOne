@@ -118,6 +118,37 @@ Local `decisions.md` and `workflow.md` are intentionally ignored. Track progress
 
 Compact institutional forms and top navigation take layout cues from the supplied LMS screenshot and the public SSN LMS. The ProCoDe events reference informed readable poster/detail hierarchy. CampusOne uses an original SVG mark and illustration; no institutional photographs, logos or event artwork were copied or hotlinked. EventPoster preserves the complete image with object-fit: contain and has a missing-image fallback. Complaint forms, queues, private attachments and timelines use the same ivory/sage/forest portal theme.
 
+## Interface screenshots
+
+The following captures show the deployed demo interface. They contain synthetic demonstration records.
+
+### Sign in
+
+![CampusOne sign-in page](docs/screenshots/campusOne_Sign_in_ss.png)
+
+### Student
+
+![Student home dashboard](docs/screenshots/student_dashboard_ss.png)
+
+![Student attendance summary and history](docs/screenshots/student_attendance_ss.png)
+
+![Student event browser](docs/screenshots/student_events_ss.png)
+
+![Student complaint list](docs/screenshots/student_complaints_ss.png)
+
+### Staff
+
+![Staff attendance workspace](docs/screenshots/staff_dashboard_ss.png)
+
+![Staff complaint submission form](docs/screenshots/staff_complaints_ss.png)
+
+### Club Head
+
+![Club Head home dashboard](docs/screenshots/clubhead_dashboard_ss.png)
+
+![Club Head events overview](docs/screenshots/clubhead_event_ss.png)
+
+![Club Head event management list](docs/screenshots/clubhead_event_2_ss.png)
 ## Institutional registration and approval
 
 - Public registration accepts only normalized, exact `@ssn.edu.in` addresses and Student, Staff or Club Head requests. Unknown fields (including roles, active state and verification flags) are rejected. Admin is never a public option.
