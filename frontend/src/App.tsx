@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type User } from "./services/api";
+import { api, sessionExpiredEvent, type User } from "./services/api";
 import { navigate, useRoute } from "./hooks/useRoute";
 import { PortalLayout } from "./layouts/PortalLayout";
 import { AuthPage } from "./pages/AuthPage";
@@ -16,6 +16,16 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [sessionMessage, setSessionMessage] = useState("");
+  useEffect(() => {
+    const expired = () => {
+      setUser(null);
+      setSessionMessage("Your session has ended. Please sign in again.");
+      navigate("/login");
+    };
+    window.addEventListener(sessionExpiredEvent, expired);
+    return () => window.removeEventListener(sessionExpiredEvent, expired);
+  }, []);
   useEffect(() => {
     api<{ user: User }>("/auth/me")
       .then((data) => setUser(data.user))
@@ -25,6 +35,7 @@ export default function App() {
   async function logout() {
     try {
       await api("/auth/logout", {});
+      setSessionMessage("");
       setUser(null);
       navigate("/login");
     } catch (e) {
@@ -39,14 +50,19 @@ export default function App() {
     );
   if (!user || route === "/verify-email")
     return (
-      <AuthPage
-        key={route}
-        route={route}
-        onLogin={(value) => {
-          setUser(value);
-          navigate("/");
-        }}
-      />
+      <>
+        {sessionMessage && <p role="status" className="notice">{sessionMessage}</p>}
+        <AuthPage
+          key={route}
+          route={route}
+          onLogin={(value) => {
+            setSessionMessage("");
+            setError("");
+            setUser(value);
+            navigate("/");
+          }}
+        />
+      </>
     );
   return (
     <PortalLayout user={user} route={route} onLogout={logout}>

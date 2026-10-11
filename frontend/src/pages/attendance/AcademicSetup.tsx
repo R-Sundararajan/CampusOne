@@ -185,6 +185,7 @@ export function AcademicSetup({
               offeringId: f.offeringId,
               assigned: f.action === "assign",
               identityConfirmed: f.identityConfirmed === "on",
+              ...(f.synthetic === "on" ? { syntheticIdentityAttested: true, identityEvidence: f.identityEvidence } : {}),
             },
             "Teaching assignment updated.",
           );
@@ -228,6 +229,11 @@ export function AcademicSetup({
             </label>
           </div>
           <label className="checkbox-label"><input type="checkbox" name="identityConfirmed" />I verified the Staff identity out of band before granting access.</label>
+          {catalog.institutionalAuthMode === "domain-only-demo" && <>
+            <label className="checkbox-label"><input type="checkbox" name="synthetic" />I attest this is an operator-authorized synthetic Staff fixture, without claiming institutional identity or mailbox ownership.</label>
+            <label>Synthetic authorization evidence<textarea name="identityEvidence" minLength={10} maxLength={500} rows={2} /></label>
+            <p className="muted">Use one identity basis. Synthetic grants require written authorization evidence and are audited.</p>
+          </>}
           <button className="secondary-button">Update assignment</button>
         </fieldset>
       </form>
@@ -265,9 +271,10 @@ export function AcademicSetup({
               email: f.email,
               reason: f.reason,
               confirmed: f.confirmed === "on",
-              identityConfirmed: f.confirmed === "on",
+              identityConfirmed: f.synthetic !== "on" && f.confirmed === "on",
+              ...(f.synthetic === "on" ? { syntheticIdentityAttested: true } : {}),
             },
-            "Student identity linked after out-of-band identity review.",
+            "Student account linked using the recorded identity basis.",
           );
         }}
       >
@@ -275,7 +282,7 @@ export function AcademicSetup({
           <legend>Authorized student reconciliation</legend>
           <p className="muted">
             Verify the student's institutional records before linking a roster
-            number. This action is recorded in the audit trail.
+            number, or explicitly attest an authorized synthetic fixture in demo mode. The identity basis and evidence are recorded in the audit trail.
           </p>
           <div className="compact-grid">
             <label>
@@ -301,13 +308,13 @@ export function AcademicSetup({
               minLength={10}
               maxLength={500}
               rows={2}
-              placeholder="Describe the institutional record used to confirm this student"
+              placeholder="Describe the institutional record or explicit operator authorization for this synthetic fixture"
             />
           </label>
           <label className="checkbox-label">
-            <input type="checkbox" name="confirmed" required />I verified that
-            this account belongs to this register number.
+            <input type="checkbox" name="confirmed" required />I reviewed the account and register number linkage using the evidence above.
           </label>
+          {catalog.institutionalAuthMode === "domain-only-demo" && <label className="checkbox-label"><input type="checkbox" name="synthetic" />This is an operator-authorized synthetic Student fixture; I make no institutional identity or mailbox ownership claim.</label>}
           <button className="secondary-button">Confirm & link student</button>
         </fieldset>
       </form>

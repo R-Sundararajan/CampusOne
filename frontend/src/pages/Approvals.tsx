@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api, roleLabel, type RoleRequest } from "../services/api";
 import { ClubAccess } from "./ClubAccess";
 type Inbox = {
+  institutionalAuthMode?: string;
   requests: RoleRequest[];
   clubs: { id: string; name: string }[];
   offerings: { id: string; label: string }[];
@@ -16,6 +17,7 @@ export function Approvals() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [clubAccessRevision, setClubAccessRevision] = useState(0);
   const load = () => api<Inbox>("/admin/role-requests").then(setData);
   useEffect(() => {
     load()
@@ -35,6 +37,10 @@ export function Approvals() {
         : {
             decision,
             identityConfirmed: form.get("identityConfirmed") === "on",
+            ...(form.get("syntheticIdentityAttested") === "on" ? {
+              syntheticIdentityAttested: true,
+              identityEvidence: String(form.get("identityEvidence") ?? "").trim(),
+            } : {}),
             ...(form.has("clubId")
               ? { clubId: form.get("clubId") }
               : { offeringIds: form.getAll("offeringIds") }),
@@ -52,6 +58,7 @@ export function Approvals() {
       }
       await api("/admin/role-requests/" + id + "/decision", payload);
       await load();
+      setClubAccessRevision((revision) => revision + 1);
       setMessage(
         "Request " + (decision === "APPROVED" ? "approved." : "rejected."),
       );
@@ -67,7 +74,7 @@ export function Approvals() {
         <p className="eyebrow">ADMINISTRATION</p>
         <h1>Access requests</h1>
         <p>
-          Verify each person's real institutional identity out of band before granting Staff or Club Head permissions. An email domain does not prove identity.
+          Review identity and authorization out of band before granting Staff or Club Head permissions. An email domain does not prove identity. Controlled synthetic fixtures require explicit demo attestation rather than a claim of institutional identity.
         </p>
       </div>
       {error && (
@@ -146,8 +153,19 @@ export function Approvals() {
                 </label>
                 <label className="checkbox-label">
                   <input type="checkbox" name="identityConfirmed" />
-                  I verified this person's institutional identity out of band (required for demo-mode approval).
+                  I verified this person's institutional identity out of band.
                 </label>
+                {data.institutionalAuthMode === "domain-only-demo" && <fieldset>
+                  <legend>Controlled synthetic demonstration alternative</legend>
+                  <p>This attestation grants only the requested role and selected assignments. It does not verify institutional identity or mailbox ownership. Leave the institutional identity checkbox unchecked.</p>
+                  <label className="checkbox-label">
+                    <input type="checkbox" name="syntheticIdentityAttested" />
+                    I reviewed and authorized this controlled synthetic account out of band for the demonstration.
+                  </label>
+                  <label>Out-of-band authorization evidence (required for synthetic attestation)
+                    <textarea name="identityEvidence" maxLength={500} rows={2} placeholder="Record who authorized this fixture, when, and how its control was reviewed. Do not include passwords." />
+                  </label>
+                </fieldset>}
                 <button className="primary-button" disabled={busy === r.id}>
                   {busy === r.id ? "Saving…" : "Save decision"}
                 </button>
@@ -156,7 +174,7 @@ export function Approvals() {
           ))}
         </div>
       )}
-      <ClubAccess />
+      <ClubAccess revision={clubAccessRevision} onClubsChanged={load} />
     </>
   );
 }

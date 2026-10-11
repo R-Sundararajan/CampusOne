@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../services/api";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 type Access = {
+  institutionalAuthMode?: string;
   clubs: { id: string; name: string }[];
   heads: { id: string; name: string; email: string }[];
   assignments: {
@@ -11,7 +12,7 @@ type Access = {
     club: { name: string };
   }[];
 };
-export function ClubAccess() {
+export function ClubAccess({ revision, onClubsChanged }: { revision: number; onClubsChanged: () => Promise<void> }) {
   const [data, setData] = useState<Access>();
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -21,11 +22,25 @@ export function ClubAccess() {
     clubId: string;
     active: boolean;
     reason: string;
+    synthetic: boolean;
   }>();
   const load = () => api<Access>("/admin/club-access").then(setData);
+  async function createClub(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const name = String(new FormData(form).get("name") ?? "").trim();
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await api("/admin/clubs", { name });
+      await Promise.all([load(), onClubsChanged()]);
+      form.reset();
+      setMessage("Club saved. It is available for Club Head approval and assignments.");
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
   useEffect(() => {
     load().catch((e) => setError(e.message));
-  }, []);
+  }, [revision]);
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -34,6 +49,7 @@ export function ClubAccess() {
       clubId: String(f.get("clubId")),
       active: f.get("active") === "true",
       reason: String(f.get("reason")).trim(),
+      synthetic: f.get("active") === "true" && f.get("synthetic") === "on",
     });
   }
   async function save() {
@@ -42,7 +58,8 @@ export function ClubAccess() {
     setError("");
     setMessage("");
     try {
-      await api("/admin/club-access", { ...pending, identityConfirmed: pending.active });
+      const { synthetic, ...change } = pending;
+      await api("/admin/club-access", { ...change, identityConfirmed: pending.active && !synthetic, ...(synthetic ? { syntheticIdentityAttested: true } : {}) });
       await load();
       setMessage("Club access updated and audited.");
     } catch (e) {
@@ -54,6 +71,12 @@ export function ClubAccess() {
   }
   return (
     <section className="panel club-access">
+      <h2>Clubs</h2>
+      <p>Create a club before approving its Club Head. Saving an existing name reuses that club.</p>
+      <form onSubmit={createClub}>
+        <label>Club name<input name="name" required minLength={3} maxLength={100} disabled={busy} /></label>
+        <button className="secondary-button" disabled={busy}>Save club</button>
+      </form>
       <h2>Club Head assignments</h2>
       <p>
         Grant or revoke club access for approved Club Heads. Revocation
@@ -128,6 +151,7 @@ export function ClubAccess() {
               Reason
               <input required minLength={3} maxLength={500} name="reason" />
             </label>
+            {data.institutionalAuthMode === "domain-only-demo" && <label className="checkbox-label"><input type="checkbox" name="synthetic" />I reviewed the Admin authorization for this controlled synthetic Club Head and recorded the evidence in the reason. No institutional identity or mailbox ownership claim.</label>}
             <button className="secondary-button" disabled={busy}>
               Review access change
             </button>
@@ -139,7 +163,7 @@ export function ClubAccess() {
           title={pending.active ? "Grant club access?" : "Revoke club access?"}
           description={
             (pending.active
-              ? "Confirm only after verifying this person's real institutional identity out of band. The selected approved Club Head will be able to manage this club’s events."
+              ? (pending.synthetic ? "Confirm the recorded operator authorization for this synthetic fixture, without claiming institutional identity or mailbox ownership. " : "Confirm only after verifying this person's institutional identity out of band. ") + "The selected approved Club Head will be able to manage this club’s events."
               : "The selected Club Head will immediately lose permission to manage this club’s events.") +
             " This change and its reason will be audited."
           }

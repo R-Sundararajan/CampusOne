@@ -18,6 +18,7 @@ export type Offering = {
   assignments?: { staffId: string; staff: { name: string } }[];
 };
 export type Catalog = {
+  institutionalAuthMode?: string;
   classes: ClassGroup[];
   offerings: Offering[];
   terms: { id: string; name: string }[];
