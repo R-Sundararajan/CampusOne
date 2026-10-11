@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import sharp from "sharp";
 import request from "supertest";
 import {
@@ -814,6 +814,36 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         await db.image.findUnique({ where: { eventId: e.id } }),
       ).toBeNull();
     });
+    it("persists a large poster when database latency exceeds five seconds", async () => {
+      const e = await draft();
+      const bytes = await sharp(randomBytes(600 * 800 * 3), {
+        raw: { width: 600, height: 800, channels: 3 },
+      }).png().toBuffer();
+      expect(bytes.length).toBeGreaterThan(1024 * 1024);
+      expect(bytes.length).toBeLessThan(MAX_IMAGE_BYTES);
+      const before = (await db.imageBudget.findUniqueOrThrow({ where: { id: 1 } })).usedBytes;
+      const original = db.$transaction.bind(db);
+      const spy = vi.spyOn(db, "$transaction").mockImplementationOnce(async (fn: unknown, options) =>
+        original(async tx => {
+          // Model hosted-database latency inside the real PostgreSQL transaction.
+          await new Promise(resolve => setTimeout(resolve, 5500));
+          return (fn as (t: typeof tx) => Promise<unknown>)(tx);
+        }, options),
+      );
+      try {
+        const response = await upload(e.id, 1, bytes);
+        expect(response.status, JSON.stringify(response.body)).toBe(200);
+        expect(response.body.version).toBe(2);
+      } finally {
+        spy.mockRestore();
+      }
+      const stored = await db.image.findUniqueOrThrow({ where: { eventId: e.id } });
+      expect((await db.imageBudget.findUniqueOrThrow({ where: { id: 1 } })).usedBytes).toBe(before + stored.sizeBytes);
+      const response = await get("/" + e.id + "/poster");
+      expect(response.status).toBe(200);
+      expect(await sharp(response.body).metadata()).toMatchObject({ width: 600, height: 800 });
+      expect(await db.auditLog.count({ where: { entityId: e.id, action: "EVENT_POSTER_REPLACED" } })).toBe(1);
+    }, 20000);
     it("limits upload bodies and rejects bad bytes and mismatched extensions", async () => {
       const e = await draft();
       expect(

@@ -62,6 +62,8 @@ export function eventsService(db: PrismaClient, clock = () => new Date(), mode: 
     version: number,
     fn: (tx: Prisma.TransactionClient, e: Selected) => Promise<T>,
   ) {
+    // Hosted database round trips and a 2 MiB image write can exceed Prisma's
+    // five-second default. Match the bounded timeout used by complaints.
     return db.$transaction(async (tx) => {
       const before = await tx.event.findUnique({
         where: { id },
@@ -78,7 +80,7 @@ export function eventsService(db: PrismaClient, clock = () => new Date(), mode: 
           "This event changed. Reload before saving.",
         );
       return fn(tx, e);
-    });
+    }, { maxWait: 10000, timeout: 15000 });
   }
   async function audit(
     tx: Prisma.TransactionClient,
