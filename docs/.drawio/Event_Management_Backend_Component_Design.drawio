@@ -1,0 +1,96 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="FCmX2gcsxw5eq8SXXaYm">
+    <mxGraphModel dx="1269" dy="658" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="okzY89QG_QwX6ISDSsTs-49" edge="1" parent="1" source="gqTNjJqzDvim0WSLgbCU-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="okzY89QG_QwX6ISDSsTs-48">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gqTNjJqzDvim0WSLgbCU-12" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Event Registration" vertex="1">
+          <mxGeometry height="30" width="160" x="609" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-3" edge="1" parent="1" source="gqTNjJqzDvim0WSLgbCU-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="DZMQYisK07wInkPa_Crc-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-2" edge="1" parent="1" source="gqTNjJqzDvim0WSLgbCU-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="okzY89QG_QwX6ISDSsTs-54">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-4" edge="1" parent="1" source="gqTNjJqzDvim0WSLgbCU-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="gqTNjJqzDvim0WSLgbCU-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gqTNjJqzDvim0WSLgbCU-14" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Event Management Module" vertex="1">
+          <mxGeometry height="60" width="201" x="309" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-8" edge="1" parent="1" source="DZMQYisK07wInkPa_Crc-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="80" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-9" edge="1" parent="1" source="DZMQYisK07wInkPa_Crc-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="180" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="DZMQYisK07wInkPa_Crc-8" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Event Management" vertex="1">
+          <mxGeometry height="30" width="160" x="50" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-48" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Student Registration" vertex="1">
+          <mxGeometry height="30" width="60" x="659" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-3" edge="1" parent="1" source="okzY89QG_QwX6ISDSsTs-54" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="okzY89QG_QwX6ISDSsTs-59">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-54" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Event Discovery" vertex="1">
+          <mxGeometry height="30" width="150.5" x="334" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-59" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="View Event Details&amp;nbsp;" vertex="1">
+          <mxGeometry height="30" width="130.75" x="343.88" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-6" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Create Event" vertex="1">
+          <mxGeometry height="30" width="60" x="50" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Update Event" vertex="1">
+          <mxGeometry height="30" width="60" x="150" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-18" edge="1" parent="1" source="hVTLZ3_9LkV0sGcjJgZT-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="hVTLZ3_9LkV0sGcjJgZT-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-10" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Club Specific Access" vertex="1">
+          <mxGeometry height="30" width="120" x="70" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-11" edge="1" parent="1" style="endArrow=none;html=1;rounded=0;" target="hVTLZ3_9LkV0sGcjJgZT-7" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="110" y="314.5" as="sourcePoint" />
+            <mxPoint x="140" y="314.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-12" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="130" y="320" as="sourcePoint" />
+            <mxPoint x="130" y="390" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-19" edge="1" parent="1" source="hVTLZ3_9LkV0sGcjJgZT-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="50" y="510" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-20" edge="1" parent="1" source="hVTLZ3_9LkV0sGcjJgZT-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="210" y="510" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-13" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Admin Control" vertex="1">
+          <mxGeometry height="30" width="60" x="100" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-16" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="View All Event Statistics" vertex="1">
+          <mxGeometry height="30" width="100" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="hVTLZ3_9LkV0sGcjJgZT-17" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Club Access Management" vertex="1">
+          <mxGeometry height="30" width="60" x="180" y="520" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,102 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="FCmX2gcsxw5eq8SXXaYm">
+    <mxGraphModel dx="2096" dy="658" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="gqTNjJqzDvim0WSLgbCU-2" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="gqTNjJqzDvim0WSLgbCU-9">
+          <mxGeometry relative="1" x="-0.7657" as="geometry">
+            <Array as="points">
+              <mxPoint x="60" y="105" />
+              <mxPoint x="60" y="200" />
+            </Array>
+            <mxPoint x="310" y="105" as="sourcePoint" />
+            <mxPoint x="190" y="180" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gqTNjJqzDvim0WSLgbCU-7" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="gqTNjJqzDvim0WSLgbCU-12">
+          <mxGeometry relative="1" x="-0.7419" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="105" />
+              <mxPoint x="800" y="210" />
+            </Array>
+            <mxPoint x="500" y="105" as="sourcePoint" />
+            <mxPoint x="630" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-17" edge="1" parent="1" source="gqTNjJqzDvim0WSLgbCU-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="okzY89QG_QwX6ISDSsTs-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-20" edge="1" parent="1" source="gqTNjJqzDvim0WSLgbCU-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="okzY89QG_QwX6ISDSsTs-16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gqTNjJqzDvim0WSLgbCU-9" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Complaint Submission" vertex="1">
+          <mxGeometry height="30" width="160" x="-20" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-49" edge="1" parent="1" source="gqTNjJqzDvim0WSLgbCU-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="okzY89QG_QwX6ISDSsTs-48">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-50" edge="1" parent="1" source="gqTNjJqzDvim0WSLgbCU-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="okzY89QG_QwX6ISDSsTs-32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gqTNjJqzDvim0WSLgbCU-12" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Complaint Processing" vertex="1">
+          <mxGeometry height="30" width="160" x="720" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-3" edge="1" parent="1" source="gqTNjJqzDvim0WSLgbCU-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="DZMQYisK07wInkPa_Crc-8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="240" y="110" />
+              <mxPoint x="240" y="215" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-55" edge="1" parent="1" source="gqTNjJqzDvim0WSLgbCU-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="560" y="200" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gqTNjJqzDvim0WSLgbCU-14" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Complaint Management Module" vertex="1">
+          <mxGeometry height="60" width="201" x="309" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-53" edge="1" parent="1" source="DZMQYisK07wInkPa_Crc-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="okzY89QG_QwX6ISDSsTs-21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DZMQYisK07wInkPa_Crc-8" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Complaint Tracking" vertex="1">
+          <mxGeometry height="30" width="160" x="170" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-13" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Create Complaint" vertex="1">
+          <mxGeometry height="30" width="60" x="-25" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-16" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Image Upload" vertex="1">
+          <mxGeometry height="30" width="60" x="80" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-21" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="View Status" vertex="1">
+          <mxGeometry height="30" width="100" x="200" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-52" edge="1" parent="1" source="okzY89QG_QwX6ISDSsTs-32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="okzY89QG_QwX6ISDSsTs-51" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-32" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Reject Complaint" vertex="1">
+          <mxGeometry height="30" width="60" x="860" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-48" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Accept Complaint" vertex="1">
+          <mxGeometry height="30" width="60" x="690" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-51" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Rejection Reason" vertex="1">
+          <mxGeometry height="30" width="60" x="860" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-58" edge="1" parent="1" source="okzY89QG_QwX6ISDSsTs-54" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="560" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-54" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Resolution" vertex="1">
+          <mxGeometry height="30" width="60" x="530" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="okzY89QG_QwX6ISDSsTs-59" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Feedback" vertex="1">
+          <mxGeometry height="30" width="60" x="530" y="280" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
