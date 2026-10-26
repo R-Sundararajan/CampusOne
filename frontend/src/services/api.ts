@@ -23,9 +23,14 @@ export const roleLabel: Record<Role, string> = {
 export const sessionExpiredEvent = "campusone:session-expired";
 export type ApiFieldError = { field: string; message: string };
 export class ApiError extends Error {
-  constructor(message: string, public code?: string, public details?: ApiFieldError[]) {
+  code?: string;
+  details?: ApiFieldError[];
+
+  constructor(message: string, code?: string, details?: ApiFieldError[]) {
     super(message);
     this.name = "ApiError";
+    this.code = code;
+    this.details = details;
   }
 }
 export function apiErrorMessage(data: unknown, fallback = "Unable to connect. Please try again.") {
