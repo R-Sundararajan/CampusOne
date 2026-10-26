@@ -312,6 +312,7 @@ export function MarkAttendance({
                   Student suffixes
                   <textarea
                     rows={3}
+                    maxLength={20000}
                     value={input}
                     onChange={(e) => {
                       invalidate();
@@ -456,6 +457,7 @@ export function MarkAttendance({
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     rows={2}
+                    required
                     minLength={5}
                     maxLength={500}
                     placeholder="Explain the correction for the audit trail"

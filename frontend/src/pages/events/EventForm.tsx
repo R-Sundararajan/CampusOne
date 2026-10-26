@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api, type User } from "../../services/api";
+import { api, apiErrorMessage, type User } from "../../services/api";
 import { navigate } from "../../hooks/useRoute";
 import { Link } from "../../components/Link";
 import { EventPoster } from "../../components/EventPoster";
@@ -74,6 +74,21 @@ export function EventForm({ user, id }: { user: User; id?: string }) {
     let saved = current;
     let detailsSaved = false;
     try {
+      const start = fields.startsAt ? new Date(fields.startsAt) : null;
+      const end = fields.endsAt ? new Date(fields.endsAt) : null;
+      const registrationDeadline = fields.registrationEndsAt
+        ? new Date(fields.registrationEndsAt)
+        : null;
+      if (end && (!start || end <= start))
+        throw new Error("End time must follow the start time.");
+      if (registrationDeadline && (!start || registrationDeadline > start))
+        throw new Error("Registration deadline must be on or before the start time.");
+      if (publish) {
+        if (!fields.description.trim() || !fields.venue.trim() || !start || !registrationDeadline)
+          throw new Error("Publishing requires a description, venue, start time and registration deadline.");
+        if (start <= new Date() || registrationDeadline <= new Date())
+          throw new Error("Publish with a future start and an open registration deadline.");
+      }
       saved = await api<CampusEvent>(
         saved ? "/events/" + saved.id + "/edit" : "/events",
         saved
@@ -97,7 +112,7 @@ export function EventForm({ user, id }: { user: User; id?: string }) {
         );
         const result = await response.json();
         if (!response.ok)
-          throw new Error(result.error ?? "Poster upload failed.");
+          throw new Error(apiErrorMessage(result, "Poster upload failed."));
         saved = result as CampusEvent;
         setCurrent({ ...saved, canManage: true });
         setFile(undefined);
