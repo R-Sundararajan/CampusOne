@@ -12,7 +12,7 @@ function requestImageMime(req: Request) {
 
 export function requireImageContentType(req: Request, _res: Response, next: NextFunction) {
   if (!imageMimes.includes(requestImageMime(req) as typeof imageMimes[number])) {
-    next(new AccountError(415, "Only JPEG and PNG images are supported."));
+    next(new AccountError(400, "Only JPEG and PNG images are supported."));
     return;
   }
   next();
