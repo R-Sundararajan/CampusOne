@@ -1,12 +1,53 @@
 import sharp from "sharp";
+import type { NextFunction, Request, Response } from "express";
 import type { Prisma } from "../generated/prisma/client.js";
 import { AccountError } from "../modules/registration/service.js";
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 export const MAX_STORED_BYTES = 50 * 1024 * 1024;
+const imageMimes = ["image/jpeg", "image/png"] as const;
+
+function requestImageMime(req: Request) {
+  return (req.get("Content-Type") ?? "").split(";")[0]!.trim().toLowerCase();
+}
+
+export function requireImageContentType(req: Request, _res: Response, next: NextFunction) {
+  if (!imageMimes.includes(requestImageMime(req) as typeof imageMimes[number])) {
+    next(new AccountError(415, "Only JPEG and PNG images are supported."));
+    return;
+  }
+  next();
+}
+
+export function normalizedImageMime(req: Request) {
+  return requestImageMime(req);
+}
+
 export type StoredImage = {
   bytes: Buffer;
   mimeType: "image/jpeg" | "image/png";
 };
+
+/** Decode the URI-encoded filename sent in X-Image-Filename and reject values
+ * that cannot safely be treated as a single, bounded filename. */
+export function decodeImageFilename(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  let filename: string;
+  try {
+    filename = decodeURIComponent(value);
+  } catch {
+    throw new AccountError(400, "Image filename encoding is invalid.");
+  }
+  if (
+    !filename ||
+    filename.length > 255 ||
+    /[\u0000-\u001f\u007f]/.test(filename) ||
+    /[\\/]/.test(filename)
+  ) {
+    throw new AccountError(400, "Image filename is invalid.");
+  }
+  return filename;
+}
+
 export async function validateImage(
   bytes: Buffer,
   mimeType: string,

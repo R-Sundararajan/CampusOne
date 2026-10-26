@@ -2,7 +2,7 @@
 
 One campus application for attendance, club events, and campus complaints. React/Vite and Express run together in one Docker container; PostgreSQL stores structured data. Render hosts the application; Neon PostgreSQL stores structured data and image bytes. GitHub Actions validates commits, and Render deploys main only after CI checks pass.
 
-Current [deployment guide](docs/render-neon-deployment.md) and [architecture decisions](docs/architecture.md). Historical release integration and test evidence: [Phase 5](docs/phase5-integration-deployment.md). Module details: [Attendance](docs/phase2-attendance.md), [Events](docs/phase3-events.md), [Complaints](docs/phase4-complaints.md).
+Current [deployment guide](docs/render-neon-deployment.md), [architecture decisions](docs/architecture.md), and [input validation hardening](docs/input-validation-hardening.md). Historical release integration and test evidence: [Phase 5](docs/phase5-integration-deployment.md). Module details: [Attendance](docs/phase2-attendance.md), [Events](docs/phase3-events.md), [Complaints](docs/phase4-complaints.md).
 
 ## Current milestone
 

@@ -4,6 +4,8 @@ import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import argon2 from "argon2";
 import { z } from "zod";
+import { parseInput } from "../../validation/parse.js";
+import { emptyQuerySchema } from "../../validation/query.js";
 import type { Config } from "../../config.js";
 import type { AuthRepository, PublicUser } from "./repository.js";
 import { issueToken, tokenLifetimeSeconds, verifyToken } from "./tokens.js";
@@ -95,15 +97,11 @@ export async function authRoutes(repo: AuthRepository, config: Config) {
       },
     }),
     async (req, res) => {
-      const parsed = loginSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({ error: "Enter a valid email and password" });
-        return;
-      }
-      const user = await repo.findForLogin(parsed.data.email);
+      const input = parseInput(loginSchema, req.body);
+      const user = await repo.findForLogin(input.email);
       const validPassword = await argon2.verify(
         user?.passwordHash ?? dummyHash,
-        parsed.data.password,
+        input.password,
       );
       if (!user || !validPassword) {
         res
@@ -127,9 +125,13 @@ export async function authRoutes(repo: AuthRepository, config: Config) {
     res.clearCookie(authCookie, cookieOptions);
     res.status(204).end();
   });
-  router.get("/me", authenticate, (req, res) => res.json({ user: req.user }));
-  router.get("/admin-check", authenticate, requireRoles("ADMIN"), (_req, res) =>
-    res.json({ allowed: true }),
-  );
+  router.get("/me", authenticate, (req, res) => {
+    parseInput(emptyQuerySchema, req.query);
+    res.json({ user: req.user });
+  });
+  router.get("/admin-check", authenticate, requireRoles("ADMIN"), (req, res) => {
+    parseInput(emptyQuerySchema, req.query);
+    res.json({ allowed: true });
+  });
   return router;
 }

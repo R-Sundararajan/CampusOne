@@ -247,9 +247,12 @@ export function eventsService(db: PrismaClient, clock = () => new Date(), mode: 
         const next = {
           ...e,
           ...fields,
-          startsAt: fields.startsAt ?? null,
-          endsAt: fields.endsAt ?? null,
-          registrationEndsAt: fields.registrationEndsAt ?? null,
+          startsAt: fields.startsAt === undefined ? e.startsAt : fields.startsAt,
+          endsAt: fields.endsAt === undefined ? e.endsAt : fields.endsAt,
+          registrationEndsAt:
+            fields.registrationEndsAt === undefined
+              ? e.registrationEndsAt
+              : fields.registrationEndsAt,
         };
         validateDates(next);
         if (e.status === "PUBLISHED") publishedRequirements(next, false);
@@ -457,8 +460,9 @@ export function eventsService(db: PrismaClient, clock = () => new Date(), mode: 
       version: number,
       bytes: Buffer,
       mime: string,
+      filename?: string,
     ) {
-      const validated = await validateImage(bytes, mime);
+      const validated = await validateImage(bytes, mime, filename);
       return lockedManage(user, id, version, async (tx, e) => {
         if (e.status === "CANCELLED")
           throw new AccountError(409, "Cancelled events cannot be edited.");

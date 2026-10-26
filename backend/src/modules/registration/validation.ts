@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { textField } from "../../validation/text.js";
 
 export const institutionalEmail = z
   .string()
@@ -12,7 +13,7 @@ export const institutionalEmail = z
 export const requestableRole = z.enum(["STAFF", "CLUB_HEAD"]);
 export const registrationSchema = z
   .object({
-    fullName: z.string().trim().min(2).max(100),
+    fullName: textField({ min: 2, max: 100 }),
     email: institutionalEmail,
     accountType: z.enum(["STUDENT", "STAFF", "CLUB_HEAD"]),
     password: z.string().min(12).max(128),
@@ -27,17 +28,25 @@ export const decisionSchema = z.discriminatedUnion("decision", [
   z
     .object({
       decision: z.literal("APPROVED"),
-      clubId: z.string().min(1).max(100).optional(),
-      offeringIds: z.array(z.string().min(1).max(100)).max(30).default([]),
+      clubId: textField({ min: 1, max: 100 }).optional(),
+      offeringIds: z.array(textField({ min: 1, max: 100 })).max(30).default([]),
       identityConfirmed: z.boolean().optional(),
       syntheticIdentityAttested: z.boolean().optional(),
-      identityEvidence: z.string().trim().min(10).max(500).optional(),
+      identityEvidence: textField({ min: 10, max: 500, multiline: true }).optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((value, ctx) => {
+      if (value.identityConfirmed && value.syntheticIdentityAttested)
+        ctx.addIssue({ code: "custom", path: ["syntheticIdentityAttested"], message: "Choose one identity basis." });
+      if (value.syntheticIdentityAttested && !value.identityEvidence)
+        ctx.addIssue({ code: "custom", path: ["identityEvidence"], message: "Synthetic fixture approval requires authorization evidence." });
+      if (value.identityEvidence && !value.syntheticIdentityAttested)
+        ctx.addIssue({ code: "custom", path: ["identityEvidence"], message: "Evidence is only accepted for synthetic fixture attestation." });
+    }),
   z
     .object({
       decision: z.literal("REJECTED"),
-      reason: z.string().trim().min(1).max(500),
+      reason: textField({ min: 1, max: 500, multiline: true }),
     })
     .strict(),
 ]);

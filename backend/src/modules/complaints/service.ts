@@ -165,9 +165,10 @@ export function complaintsService(db: PrismaClient, allowDemo = false, mode: Ins
     detail(user: PublicUser, id: string) {
       return transaction(user, false, async (tx, ctx) => detail(tx, await find(tx, id), ctx));
     },
-    accept(user: PublicUser, id: string, version: number, studentGroup: typeof groups[number]) {
+    accept(user: PublicUser, id: string, version: number, studentGroup: typeof groups[number], confirmRouting = false) {
       return mutate(user, id, version, async (tx, c, ctx) => {
         requireAdmin(ctx.user);
+        if (!confirmRouting) throw new AccountError(400, "Confirm the selected routing group before accepting this complaint.");
         if (c.status !== "SUBMITTED") throw new AccountError(409, "This complaint has already been verified.");
         const slot = ctx.activeSlots.find(s => s.studentGroup === studentGroup);
         const now = new Date();

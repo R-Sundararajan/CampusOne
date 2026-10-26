@@ -1,22 +1,24 @@
 import { z } from "zod";
 import { AccountError } from "../registration/service.js";
-const id = z.string().trim().min(1).max(100);
+import { textField } from "../../validation/text.js";
+import { parseInput } from "../../validation/parse.js";
+import { queryInteger, requiredQueryInteger } from "../../validation/query.js";
+const id = textField({ min: 1, max: 100 });
 const date = z.iso
   .datetime({ offset: true })
   .transform((v) => new Date(v))
   .nullable()
   .optional();
 const fields = {
-  name: z.string().trim().min(1, "Enter an event name.").max(160),
-  description: z.string().trim().max(10000).default(""),
-  venue: z.string().trim().max(200).default(""),
+  name: textField({ min: 1, max: 160 }),
+  description: textField({ max: 10000, multiline: true }).default(""),
+  venue: textField({ max: 200 }).default(""),
   startsAt: date,
   endsAt: date,
   registrationEndsAt: date,
   registrationLink: z
     .string()
-    .trim()
-    .max(2000)
+    .pipe(textField({ max: 2000 }))
     .refine((v) => {
       try {
         const u = new URL(v);
@@ -41,7 +43,10 @@ export const actionSchema = z
   })
   .strict();
 export const versionSchema = z
-  .object({ version: z.coerce.number().int().positive() })
+  .object({ version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) })
+  .strict();
+export const queryVersionSchema = z
+  .object({ version: requiredQueryInteger(1, Number.MAX_SAFE_INTEGER) })
   .strict();
 export const listSchema = z
   .object({
@@ -49,33 +54,22 @@ export const listSchema = z
     group: z.enum(["upcoming", "ongoing", "past", "all"]).default("upcoming"),
     status: z.enum(["DRAFT", "PUBLISHED", "CANCELLED"]).optional(),
     clubId: id.optional(),
-    q: z.string().trim().max(120).default(""),
+    q: textField({ max: 120 }).default(""),
     sort: z.enum(["asc", "desc"]).default("asc"),
-    page: z.coerce.number().int().min(1).max(100000).default(1),
-    pageSize: z.coerce.number().int().min(1).max(24).default(12),
+    page: queryInteger(1, 10000, 1),
+    pageSize: queryInteger(1, 24, 12),
   })
   .strict();
 export const pageSchema = z
   .object({
-    page: z.coerce.number().int().min(1).max(100000).default(1),
-    pageSize: z.coerce.number().int().min(1).max(50).default(25),
+    page: queryInteger(1, 10000, 1),
+    pageSize: queryInteger(1, 50, 25),
   })
   .strict();
 export type EventInput = z.infer<typeof createSchema>;
 export type EventEdit = z.infer<typeof editSchema>;
 export type EventQuery = z.infer<typeof listSchema>;
-export function parse<T extends z.ZodType>(
-  schema: T,
-  value: unknown,
-): z.infer<T> {
-  const parsed = schema.safeParse(value);
-  if (!parsed.success)
-    throw new AccountError(
-      400,
-      parsed.error.issues.map((i) => i.message).join(" "),
-    );
-  return parsed.data;
-}
+export const parse = parseInput;
 export function validateDates(e: {
   startsAt?: Date | null;
   endsAt?: Date | null;

@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
+import { textField } from "../../validation/text.js";
+import { parseInput } from "../../validation/parse.js";
+import { emptyQuerySchema } from "../../validation/query.js";
 import type { Config } from "../../config.js";
 import type { AuthRepository } from "../auth/repository.js";
 import { authentication, requireRoles } from "../auth/routes.js";
@@ -41,67 +44,41 @@ export function registrationRoutes(
         ? "If this address is new and eligible, Student access is ready to sign in. Staff and Club Head requests require Admin approval. No verification email is sent."
         : "If this address is eligible, check its inbox for a verification link.",
   };
-  router.get("/auth/policy", (_req, res) => res.json({ institutionalAuthMode: config.institutionalAuthMode ?? "email-verification" }));
+  router.get("/auth/policy", (req, res) => { parseInput(emptyQuerySchema, req.query); res.json({ institutionalAuthMode: config.institutionalAuthMode ?? "email-verification" }); });
   router.post("/auth/register", registrationLimit, async (req, res) => {
-    const parsed = registrationSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({
-        error:
-          "Use a valid @ssn.edu.in email, a full name, an allowed account type and matching passwords of 12–128 characters.",
-      });
-      return;
-    }
-    await service.register(parsed.data);
+    await service.register(parseInput(registrationSchema, req.body));
     res.status(202).json(accepted);
   });
   router.post(
     "/auth/verification/resend",
     registrationLimit,
     async (req, res) => {
-      const parsed = z
+      const input = parseInput(z
         .object({ email: institutionalEmail })
-        .strict()
-        .safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({ error: "Enter a valid @ssn.edu.in email." });
-        return;
-      }
-      await service.resend(parsed.data.email);
+        .strict(), req.body);
+      await service.resend(input.email);
       res.status(202).json(accepted);
     },
   );
   router.post("/auth/verify", verificationLimit, async (req, res) => {
-    const parsed = z
+    const input = parseInput(z
       .object({ token: z.string().regex(/^[a-f0-9]{64}$/) })
-      .strict()
-      .safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({
-        error: "Verification link is invalid or expired. Request a new link.",
-      });
-      return;
-    }
-    res.json(await service.verify(parsed.data.token));
+      .strict(), req.body);
+    res.json(await service.verify(input.token));
   });
-  router.get("/auth/role-requests", authenticate, async (req, res) =>
-    res.json({ requests: await service.mine(req.user!.id) }),
-  );
+  router.get("/auth/role-requests", authenticate, async (req, res) => {
+    parseInput(emptyQuerySchema, req.query);
+    res.json({ requests: await service.mine(req.user!.id) });
+  });
   router.post(
     "/auth/role-requests",
     authenticate,
     registrationLimit,
     async (req, res) => {
-      const parsed = z
+      const input = parseInput(z
         .object({ role: requestableRole })
-        .strict()
-        .safeParse(req.body);
-      if (!parsed.success) {
-        res
-          .status(400)
-          .json({ error: "Request Staff or Club Head access only." });
-        return;
-      }
-      await service.requestRole(req.user!.id, parsed.data.role);
+        .strict(), req.body);
+      await service.requestRole(req.user!.id, input.role);
       res.status(201).json({ message: "Request submitted for review" });
     },
   );
@@ -109,22 +86,14 @@ export function registrationRoutes(
     "/admin/role-requests",
     authenticate,
     requireRoles("ADMIN"),
-    async (_req, res) => res.json(await service.inbox()),
+    async (req, res) => { parseInput(emptyQuerySchema, req.query); res.json(await service.inbox()); },
   );
   router.post(
     "/admin/role-requests/:id/decision",
     authenticate,
     requireRoles("ADMIN"),
     async (req, res) => {
-      const parsed = decisionSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({
-          error:
-            "Provide an allowed decision, valid assignments, and a reason for rejection.",
-        });
-        return;
-      }
-      await service.decide(String(req.params.id), req.user!.id, parsed.data);
+      await service.decide(String(req.params.id), req.user!.id, parseInput(decisionSchema, req.body));
       res.status(204).end();
     },
   );
@@ -132,42 +101,33 @@ export function registrationRoutes(
     "/admin/club-access",
     authenticate,
     requireRoles("ADMIN"),
-    async (_req, res) => res.json(await service.clubAccess()),
+    async (req, res) => { parseInput(emptyQuerySchema, req.query); res.json(await service.clubAccess()); },
   );
   router.post("/admin/clubs", authenticate, requireRoles("ADMIN"), async (req, res) => {
-    const input = z.object({ name: z.string().trim().min(3).max(100) }).strict().safeParse(req.body);
-    if (!input.success) {
-      res.status(400).json({ error: "Enter a club name of 3–100 characters." });
-      return;
-    }
-    res.status(201).json(await service.createClub(req.user!.id, input.data.name));
+    const input = parseInput(z.object({ name: textField({ min: 3, max: 100 }) }).strict(), req.body);
+    res.status(201).json(await service.createClub(req.user!.id, input.name));
   });
   router.post(
     "/admin/club-access",
     authenticate,
     requireRoles("ADMIN"),
     async (req, res) => {
-      const input = z
+      const input = parseInput(z
         .object({
-          userId: z.string().min(1).max(100),
-          clubId: z.string().min(1).max(100),
+          userId: textField({ min: 1, max: 100 }),
+          clubId: textField({ min: 1, max: 100 }),
           active: z.boolean(),
-          reason: z.string().trim().min(3).max(500),
+          reason: textField({ min: 3, max: 500, multiline: true }),
           identityConfirmed: z.boolean().optional(),
           syntheticIdentityAttested: z.boolean().optional(),
-        })
-        .strict()
-        .safeParse(req.body);
-      if (!input.success) {
-        res
-          .status(400)
-          .json({
-            error:
-              "Select a Club Head and club, and give a reason for this access change.",
-          });
-        return;
-      }
-      await service.changeClubAccess(req.user!.id, input.data);
+        }).strict()
+        .superRefine((value, ctx) => {
+          if (value.identityConfirmed && value.syntheticIdentityAttested)
+            ctx.addIssue({ code: "custom", path: ["syntheticIdentityAttested"], message: "Choose one identity basis." });
+          if (!value.active && (value.identityConfirmed || value.syntheticIdentityAttested))
+            ctx.addIssue({ code: "custom", path: ["active"], message: "Identity confirmation applies only when granting access." });
+        }), req.body);
+      await service.changeClubAccess(req.user!.id, input);
       res.status(204).end();
     },
   );

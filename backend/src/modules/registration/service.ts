@@ -6,15 +6,8 @@ import type { Decision, Registration, RequestedRole } from "./validation.js";
 import { registrationSchema } from "./validation.js";
 import type { InstitutionalAuthMode } from "../../config.js";
 import { accountEligible, accountEligibilityWhere } from "../auth/account-policy.js";
-
-export class AccountError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+import { AccountError } from "../../errors.js";
+export { AccountError } from "../../errors.js";
 const tokenHash = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 const requestSelection = {

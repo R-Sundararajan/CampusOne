@@ -1,6 +1,7 @@
 import { z } from "zod";
-export const id = z.string().trim().min(1).max(100);
-const label = z.string().trim().min(1).max(100);
+import { textField } from "../../validation/text.js";
+export const id = textField({ min: 1, max: 100 });
+const label = textField({ min: 1, max: 100 });
 export const date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -22,15 +23,25 @@ export const offeringSchema = z
   .object({ classGroupId: id, code: label, name: label })
   .strict();
 export const assignmentSchema = z
-  .object({ staffId: id, offeringId: id, assigned: z.boolean(), identityConfirmed: z.boolean().optional(), syntheticIdentityAttested: z.boolean().optional(), identityEvidence: z.string().trim().min(10).max(500).optional() })
-  .strict();
+  .object({ staffId: id, offeringId: id, assigned: z.boolean(), identityConfirmed: z.boolean().optional(), syntheticIdentityAttested: z.boolean().optional(), identityEvidence: textField({ min: 10, max: 500, multiline: true }).optional() })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.identityConfirmed && value.syntheticIdentityAttested)
+      ctx.addIssue({ code: "custom", path: ["syntheticIdentityAttested"], message: "Choose one identity basis." });
+    if (value.syntheticIdentityAttested && !value.identityEvidence)
+      ctx.addIssue({ code: "custom", path: ["identityEvidence"], message: "Synthetic assignment requires authorization evidence." });
+    if (value.identityEvidence && !value.syntheticIdentityAttested)
+      ctx.addIssue({ code: "custom", path: ["identityEvidence"], message: "Evidence is only accepted for synthetic fixture attestation." });
+    if (!value.assigned && (value.identityConfirmed || value.syntheticIdentityAttested || value.identityEvidence))
+      ctx.addIssue({ code: "custom", path: ["assigned"], message: "Identity confirmation applies only when granting an assignment." });
+  });
 export const rosterSchema = z
   .object({
     classGroupId: id,
     prefix: z.string().regex(/^\d{1,24}$/),
     suffixWidth: z.number().int().min(1).max(6),
-    input: z.string().max(20000),
-    names: z.record(z.string(), z.string().trim().max(100)).default({}),
+    input: textField({ max: 20000, multiline: true }),
+    names: z.record(z.string().regex(/^\d{2,30}$/), textField({ max: 100 })).default({}),
   })
   .strict();
 export const importSchema = rosterSchema.extend({
@@ -43,15 +54,19 @@ export const linkSchema = z
     identityConfirmed: z.boolean().optional(),
     syntheticIdentityAttested: z.boolean().optional(),
     email: z.email().trim().toLowerCase(),
-    reason: z.string().trim().min(10).max(500),
+    reason: textField({ min: 10, max: 500, multiline: true }),
     confirmed: z.literal(true),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.identityConfirmed && value.syntheticIdentityAttested)
+      ctx.addIssue({ code: "custom", path: ["syntheticIdentityAttested"], message: "Choose one identity basis." });
+  });
 export const membershipSchema = z
   .object({
     studentId: id,
     active: z.boolean(),
-    reason: z.string().trim().min(5).max(500),
+    reason: textField({ min: 5, max: 500, multiline: true }),
     confirmed: z.literal(true),
     rosterVersion: z.number().int().nonnegative(),
   })
@@ -61,7 +76,7 @@ export const selectionSchema = z
   .strict();
 export const previewSchema = selectionSchema.extend({
   mode: z.enum(["PRESENT", "ABSENT", "ALL_PRESENT", "ALL_ABSENT", "EXISTING"]),
-  input: z.string().max(20000).default(""),
+  input: textField({ max: 20000, multiline: true }).default(""),
   overrides: z
     .array(
       z
@@ -76,7 +91,7 @@ export const saveSchema = previewSchema.extend({
   allConfirmation: z.enum(["PRESENT", "ABSENT"]).optional(),
   rosterVersion: z.number().int().nonnegative(),
   sessionVersion: z.number().int().positive().optional(),
-  reason: z.string().trim().max(500).optional(),
+  reason: textField({ max: 500, multiline: true }).optional(),
 });
 export const reportSchema = z
   .object({
