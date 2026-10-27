@@ -56,6 +56,19 @@ export function Approvals() {
       ) {
         throw new Error("Select a club before approving Club Head access.");
       }
+      if (decision === "APPROVED") {
+        const synthetic = form.get("syntheticIdentityAttested") === "on";
+        const identityConfirmed = form.get("identityConfirmed") === "on";
+        const evidence = String(form.get("identityEvidence") ?? "").trim();
+        if (synthetic && identityConfirmed)
+          throw new Error("Choose either institutional identity confirmation or synthetic fixture attestation.");
+        if (synthetic && evidence.length < 10)
+          throw new Error("Enter at least 10 characters of synthetic fixture authorization evidence.");
+        if (data.institutionalAuthMode === "domain-only-demo" && !synthetic && !identityConfirmed)
+          throw new Error("Confirm institutional identity or attest an authorized synthetic fixture before approval.");
+        if (form.has("offeringIds") && form.getAll("offeringIds").length > 30)
+          throw new Error("Select no more than 30 teaching assignments.");
+      }
       await api("/admin/role-requests/" + id + "/decision", payload);
       await load();
       setClubAccessRevision((revision) => revision + 1);
@@ -163,7 +176,7 @@ export function Approvals() {
                     I reviewed and authorized this controlled synthetic account out of band for the demonstration.
                   </label>
                   <label>Out-of-band authorization evidence (required for synthetic attestation)
-                    <textarea name="identityEvidence" maxLength={500} rows={2} placeholder="Record who authorized this fixture, when, and how its control was reviewed. Do not include passwords." />
+                    <textarea name="identityEvidence" minLength={10} maxLength={500} rows={2} placeholder="Record who authorized this fixture, when, and how its control was reviewed. Do not include passwords." />
                   </label>
                 </fieldset>}
                 <button className="primary-button" disabled={busy === r.id}>

@@ -10,10 +10,12 @@ import {
   listSchema,
   pageSchema,
   parse,
+  queryVersionSchema,
   versionSchema,
 } from "./validation.js";
 import { AccountError } from "../registration/service.js";
-import { MAX_IMAGE_BYTES } from "../../services/image-storage.js";
+import { decodeImageFilename, MAX_IMAGE_BYTES, normalizedImageMime, requireImageContentType } from "../../services/image-storage.js";
+import { cacheVersionSchema, emptyQuerySchema } from "../../validation/query.js";
 export function eventsRoutes(
   service: EventsService,
   repo: AuthRepository,
@@ -21,12 +23,14 @@ export function eventsRoutes(
 ) {
   const r = Router();
   r.use(authentication(repo, config.jwtSecret));
-  r.get("/catalog", async (req, res) =>
-    res.json(await service.catalog(req.user!)),
-  );
-  r.get("/statistics", async (req, res) =>
-    res.json(await service.statistics(req.user!)),
-  );
+  r.get("/catalog", async (req, res) => {
+    parse(emptyQuerySchema, req.query);
+    res.json(await service.catalog(req.user!));
+  });
+  r.get("/statistics", async (req, res) => {
+    parse(emptyQuerySchema, req.query);
+    res.json(await service.statistics(req.user!));
+  });
   r.get("/", async (req, res) =>
     res.json(await service.list(req.user!, parse(listSchema, req.query))),
   );
@@ -35,9 +39,10 @@ export function eventsRoutes(
       .status(201)
       .json(await service.create(req.user!, parse(createSchema, req.body))),
   );
-  r.get("/:id", async (req, res) =>
-    res.json(await service.detail(req.user!, String(req.params.id))),
-  );
+  r.get("/:id", async (req, res) => {
+    parse(emptyQuerySchema, req.query);
+    res.json(await service.detail(req.user!, String(req.params.id)));
+  });
   r.post("/:id/edit", async (req, res) =>
     res.json(
       await service.edit(
@@ -85,6 +90,7 @@ export function eventsRoutes(
     );
   });
   r.get("/:id/poster", async (req, res) => {
+    parse(cacheVersionSchema, req.query);
     const i = await service.poster(req.user!, String(req.params.id));
     res
       .set({
@@ -97,16 +103,12 @@ export function eventsRoutes(
   });
   r.post(
     "/:id/poster",
-    raw({ type: () => true, limit: MAX_IMAGE_BYTES }),
+    requireImageContentType,
+    raw({ type: ["image/jpeg", "image/png"], limit: MAX_IMAGE_BYTES }),
     async (req, res) => {
-      const p = parse(versionSchema, req.query);
-      const mime = (req.get("Content-Type") ?? "").split(";")[0]!;
-      const filename = req.get("X-Image-Filename");
-      if (filename) {
-        const ext = mime === "image/png" ? /\.png$/i : /\.jpe?g$/i;
-        if (!ext.test(filename))
-          throw new AccountError(400, "Filename and image format must match.");
-      }
+      const p = parse(queryVersionSchema, req.query);
+      const mime = normalizedImageMime(req);
+      const filename = decodeImageFilename(req.get("X-Image-Filename"));
       res.json(
         await service.savePoster(
           req.user!,
@@ -114,6 +116,7 @@ export function eventsRoutes(
           p.version,
           req.body,
           mime,
+          filename,
         ),
       );
     },

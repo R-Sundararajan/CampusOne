@@ -178,14 +178,34 @@ export function AcademicSetup({
       <form
         onSubmit={(e) => {
           const f = fields(e);
+          const assigning = f.action === "assign";
+          const identityConfirmed = f.identityConfirmed === "on";
+          const synthetic = f.synthetic === "on";
+          const evidence = String(f.identityEvidence ?? "").trim();
+          if (assigning && identityConfirmed && synthetic) {
+            setError("Choose either institutional identity confirmation or synthetic fixture attestation.");
+            return;
+          }
+          if (!assigning && (identityConfirmed || synthetic)) {
+            setError("Identity confirmation applies only when granting an assignment.");
+            return;
+          }
+          if (assigning && catalog.institutionalAuthMode === "domain-only-demo" && !identityConfirmed && !synthetic) {
+            setError("Confirm institutional identity or attest an authorized synthetic fixture before assigning access.");
+            return;
+          }
+          if (assigning && synthetic && evidence.length < 10) {
+            setError("Enter at least 10 characters of synthetic fixture authorization evidence.");
+            return;
+          }
           return save(
             "assignments",
             {
               staffId: f.staffId,
               offeringId: f.offeringId,
-              assigned: f.action === "assign",
-              identityConfirmed: f.identityConfirmed === "on",
-              ...(f.synthetic === "on" ? { syntheticIdentityAttested: true, identityEvidence: f.identityEvidence } : {}),
+              assigned: assigning,
+              identityConfirmed,
+              ...(synthetic ? { syntheticIdentityAttested: true, identityEvidence: f.identityEvidence } : {}),
             },
             "Teaching assignment updated.",
           );

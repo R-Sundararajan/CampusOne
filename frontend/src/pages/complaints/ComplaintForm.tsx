@@ -16,9 +16,13 @@ export function ComplaintForm({ catalog }: { catalog: Catalog }) {
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); setError(""); setBusy(true);
     const f = new FormData(e.currentTarget);
+    const title = String(f.get("title") ?? "").trim();
+    const description = String(f.get("description") ?? "").trim();
     try {
+      if (!saved && (title.length < 1 || title.length > 160)) throw new Error("Enter a title of 1–160 non-whitespace characters.");
+      if (!saved && (description.length < 1 || description.length > 6000)) throw new Error("Enter a description of 1–6000 non-whitespace characters.");
       if (file && (!["image/jpeg", "image/png"].includes(file.type) || file.size > 2 * 1024 * 1024)) throw new Error("Choose a JPEG/PNG image no larger than 2 MiB.");
-      const c = saved ?? await api<Complaint>("/complaints", { title: f.get("title"), description: f.get("description"), category: f.get("category"), location: f.get("location"), studentGroup: catalog.provisionalSelectionAllowed ? f.get("studentGroup") || null : null });
+      const c = saved ?? await api<Complaint>("/complaints", { title, description, category: f.get("category"), location: f.get("location"), studentGroup: catalog.provisionalSelectionAllowed ? f.get("studentGroup") || null : null });
       setSaved(c);
       if (file) await uploadImage(c, file);
       navigate("/complaints/" + c.id);

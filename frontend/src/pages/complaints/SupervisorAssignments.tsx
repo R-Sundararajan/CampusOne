@@ -7,7 +7,10 @@ export function SupervisorAssignments({ catalog, refresh }: { catalog: Catalog; 
   const [pending, setPending] = useState<{ slot: Assignment; userId: string | null; reason: string; synthetic: boolean }>();
   function prepare(e: FormEvent<HTMLFormElement>, slot: Assignment) {
     e.preventDefault(); const f = new FormData(e.currentTarget);
-    setError(""); setMessage(""); setPending({ slot, userId: String(f.get("userId")) || null, reason: String(f.get("reason")).trim(), synthetic: !!f.get("userId") && f.get("synthetic") === "on" });
+    const userId = String(f.get("userId")) || null, reason = String(f.get("reason") ?? "").trim(), synthetic = !!userId && f.get("synthetic") === "on";
+    setError(""); setMessage("");
+    if (synthetic && reason.length < 10) { setError("Enter at least 10 characters of synthetic fixture authorization evidence in the reason."); return; }
+    setPending({ slot, userId, reason, synthetic });
   }
   async function save() {
     if (!pending) return; setBusy(true);

@@ -29,6 +29,10 @@ export function ClubAccess({ revision, onClubsChanged }: { revision: number; onC
     e.preventDefault();
     const form = e.currentTarget;
     const name = String(new FormData(form).get("name") ?? "").trim();
+    if (name.length < 3 || name.length > 100) {
+      setError("Enter a club name of 3–100 non-whitespace characters.");
+      return;
+    }
     setBusy(true); setError(""); setMessage("");
     try {
       await api("/admin/clubs", { name });
@@ -44,12 +48,24 @@ export function ClubAccess({ revision, onClubsChanged }: { revision: number; onC
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
+    const active = f.get("active") === "true";
+    const reason = String(f.get("reason") ?? "").trim();
+    const synthetic = active && f.get("synthetic") === "on";
+    setError("");
+    if (reason.length < 3 || reason.length > 500) {
+      setError("Enter a reason of 3–500 non-whitespace characters.");
+      return;
+    }
+    if (synthetic && reason.length < 10) {
+      setError("Enter at least 10 characters of synthetic fixture authorization evidence in the reason.");
+      return;
+    }
     setPending({
       userId: String(f.get("userId")),
       clubId: String(f.get("clubId")),
-      active: f.get("active") === "true",
-      reason: String(f.get("reason")).trim(),
-      synthetic: f.get("active") === "true" && f.get("synthetic") === "on",
+      active,
+      reason,
+      synthetic,
     });
   }
   async function save() {

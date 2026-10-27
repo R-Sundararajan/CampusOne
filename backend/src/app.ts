@@ -104,11 +104,16 @@ export async function createApp({
   app.use(
     (error: unknown, _req: Request, res: Response, _next: NextFunction) => {
       if (error instanceof AccountError) {
-        res.status(error.status).json({ error: error.message });
+        res.status(error.status).json({
+          error: error.message,
+          ...(error.details
+            ? { code: "VALIDATION_ERROR", details: error.details }
+            : {}),
+        });
         return;
       }
       if (error instanceof SyntaxError && "body" in error) {
-        res.status(400).json({ error: "Invalid JSON body" });
+        res.status(400).json({ error: "Invalid JSON body", code: "INVALID_JSON" });
         return;
       }
       if (
@@ -117,7 +122,7 @@ export async function createApp({
         "type" in error &&
         error.type === "entity.too.large"
       ) {
-        res.status(413).json({ error: "Request body is too large" });
+        res.status(413).json({ error: "Request body is too large", code: "PAYLOAD_TOO_LARGE" });
         return;
       }
       // Avoid dumping request bodies, cookies, database URLs, or driver error details.

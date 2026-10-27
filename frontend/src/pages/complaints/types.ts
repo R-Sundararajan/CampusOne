@@ -1,3 +1,5 @@
+import { apiErrorMessage } from "../../services/api";
+
 export const groupLabels: Record<string, string> = { UG_I: "UG Year I", UG_II: "UG Year II", UG_III: "UG Year III", UG_IV: "UG Year IV", PG: "PG Students" };
 export const categoryLabels: Record<string, string> = { FACILITIES: "Facilities", HOSTEL: "Hostel", SANITATION: "Sanitation", SAFETY: "Safety", OTHER: "Other" };
 export const statusLabels: Record<string, string> = { SUBMITTED: "Submitted", ACCEPTED: "Accepted", RESOLVED: "Resolved", REJECTED: "Rejected" };
@@ -25,6 +27,6 @@ export async function uploadImage(c: Complaint, file: File) {
   if (file.size > 2 * 1024 * 1024) throw new Error("Images must be at most 2 MiB.");
   const response = await fetch(`/api/complaints/${c.id}/image?version=${c.version}`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": file.type, "X-Image-Filename": encodeURIComponent(file.name) }, body: file });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error ?? "Image upload failed.");
+  if (!response.ok) throw new Error(apiErrorMessage(data, "Image upload failed."));
   return data as Complaint;
 }

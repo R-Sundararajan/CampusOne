@@ -15,10 +15,6 @@ export function requireAdmin(user: CurrentUser) {
 export function requireSubmitter(user: CurrentUser) {
   if (!user.roles.some(r => r === "STUDENT" || r === "STAFF")) throw new AccountError(403, "Student or approved Staff access required.");
 }
-export async function authorizedGroups(tx: Prisma.TransactionClient, user: CurrentUser) {
-  if (!user.roles.includes("STAFF")) return [];
-  return (await tx.complaintSupervisorAssignment.findMany({ where: { userId: user.id }, select: { studentGroup: true } })).map(a => a.studentGroup);
-}
 export function supervisorAccounts(allowDemo = false, mode: InstitutionalAuthMode = "email-verification"): Prisma.UserWhereInput {
   return { AND: [accountEligibilityWhere(mode), { roles: { has: "STAFF" }, OR: [{ email: { endsWith: "@ssn.edu.in" }, isDemo: false }, ...(allowDemo ? [{ isDemo: true }] : [])] }] };
 }

@@ -255,6 +255,7 @@ export function Rosters({
           <textarea
             rows={4}
             spellCheck={false}
+            maxLength={20000}
             value={input}
             onChange={(e) => {
               invalidate();
@@ -485,6 +486,8 @@ export function Rosters({
             <input
               value={reason}
               onChange={(e) => setReason(e.target.value)}
+              required
+              minLength={5}
               maxLength={500}
             />
           </label>
